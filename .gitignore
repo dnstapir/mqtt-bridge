@@ -1,0 +1,5 @@
+# Don't commit cryptographic material
+certs/
+
+# Don't commit built binaries
+bin/
