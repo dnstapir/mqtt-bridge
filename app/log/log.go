@@ -34,6 +34,7 @@ func Error(fmtStr string, vals ...any) {
 }
 
 func format(fmtStr string, a []any) string {
+    // TODO fix, does not look nice with multiple varargs
     if len(a) == 0 {
         return fmtStr
     }
