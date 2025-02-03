@@ -9,6 +9,7 @@ import (
     "errors"
     "net/url"
     "os"
+    "strconv"
     "time"
 
     "github.com/dnstapir/tapir"
@@ -234,7 +235,7 @@ func SigningKey(filename string) func(*Mqtt) error {
     return fptr
 }
 
-func (m *Mqtt) Publish(data []byte) error {
+func (m *Mqtt) Publish(domain string, data []byte) error {
     if m.cm == nil {
         panic("MQTT not initialized")
     }
@@ -256,11 +257,18 @@ func (m *Mqtt) Publish(data []byte) error {
         TimeStamp:time.Now(),
         //TimeStr:,
     }
+
+    tags, err := strconv.ParseUint(string(data), 10, 32)
+    if err != nil {
+        panic(err)
+    }
+    tags32 := uint32(tags)
+
     evilDomain := tapir.Domain{
-        Name: string(data) + ".example.com.",
+        Name: domain,
         TimeAdded: time.Now(),
         TTL: 3600,
-        TagMask: 256,
+        TagMask: tapir.TagMask(tags32),
     }
     obs.Added = []tapir.Domain{evilDomain}
 

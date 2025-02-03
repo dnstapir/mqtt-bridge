@@ -4,4 +4,4 @@
 
 nats kv add observations
 
-nats kv put observations tapircore.events.observations.com.example.suspicious $1
+nats kv put observations tapir.core.events.observations.$1 $2

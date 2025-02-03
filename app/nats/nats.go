@@ -3,6 +3,8 @@ package nats
 import (
     "context"
     "errors"
+    "slices"
+    "strings"
     "time"
 
 	"github.com/nats-io/nats.go"
@@ -11,12 +13,13 @@ import (
     "tapir-core-mqtt-sender/app/log"
 )
 
-type HandlerFunc func([]byte) error
+type HandlerFunc func(string, []byte) error
 
 type Nats struct {
     url string
     bucket string
     subject string
+    subjectPrefix string
     handler HandlerFunc
     bucketCh <-chan jetstream.KeyValueEntry
     started bool
@@ -72,7 +75,18 @@ func (n *Nats) Start() error {
         for u := range n.bucketCh {
             if u != nil {
                 log.Debug("Data received on subject '%s'", u.Key())
-                err := n.handler(u.Value())
+                subjectTrimmed, found := strings.CutPrefix(u.Key(), n.subjectPrefix)
+                if !found {
+                    log.Warning("Unable to remove subject prefix, not found")
+                }
+
+                /* aaand flip it around */
+                trimmedSplit := strings.Split(subjectTrimmed, ".")
+                slices.Reverse(trimmedSplit)
+                trimmedReversed := strings.Join(trimmedSplit, ".")
+
+
+                err := n.handler(trimmedReversed, u.Value())
                 if err != nil {
                     panic(err)
                 }
@@ -119,6 +133,15 @@ func Subject(subject string) func(*Nats) error {
             return errors.New("Error configuring subject, client already started")
         }
         n.subject = subject
+
+        idx := strings.IndexAny(subject, "*>")
+
+        /* Subject prefix will be trimmed from strings passed to handler */
+        if idx < 0 {
+            n.subjectPrefix = ""
+        } else {
+            n.subjectPrefix = subject[:idx]
+        }
 
         log.Info("NATS subject configured: '%s'", n.subject)
         return nil
