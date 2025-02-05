@@ -1,4 +1,4 @@
-module tapir-core-mqtt-sender
+module github.com/dnstapir/mqtt-sender
 
 go 1.23.6
 
