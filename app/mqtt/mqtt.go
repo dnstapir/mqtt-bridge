@@ -21,7 +21,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jws"
 
-	"tapir-core-mqtt-sender/app/log"
+	"github.com/dnstapir/mqtt-sender/app/log"
 )
 
 type Mqtt struct {

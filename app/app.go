@@ -1,9 +1,9 @@
 package app
 
 import (
-	"tapir-core-mqtt-sender/app/log"
-	"tapir-core-mqtt-sender/app/mqtt"
-	"tapir-core-mqtt-sender/app/nats"
+	"github.com/dnstapir/mqtt-sender/app/log"
+	"github.com/dnstapir/mqtt-sender/app/mqtt"
+	"github.com/dnstapir/mqtt-sender/app/nats"
 )
 
 type App struct {

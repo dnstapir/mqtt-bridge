@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"tapir-core-mqtt-sender/app/log"
+	"github.com/dnstapir/mqtt-sender/app/log"
 )
 
 type HandlerFunc func(string, []byte) error

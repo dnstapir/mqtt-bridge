@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"tapir-core-mqtt-sender/app"
+	"github.com/dnstapir/mqtt-sender/app"
 )
 
 func main() {
