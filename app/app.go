@@ -17,7 +17,8 @@ type App struct {
 	MqttTlsKlfPath   string
 	MqttSigningKey   string
 	NatsUrl          string
-	NatsBucket       string
+	NatsStream       string
+	NatsConsumer     string
 	NatsSubject      string
 }
 
@@ -45,7 +46,8 @@ func (a App) Run() {
 	/* Set up NATS */
 	natsListener, err := nats.Create(
 		nats.Url(a.NatsUrl),
-		nats.Bucket(a.NatsBucket),
+		nats.Stream(a.NatsStream),
+		nats.Consumer(a.NatsConsumer),
 		nats.Subject(a.NatsSubject),
 		nats.Handler(mqttClient.Publish),
 	)

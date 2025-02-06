@@ -3,8 +3,7 @@ package nats
 import (
 	"context"
 	"errors"
-	"slices"
-	"strings"
+    "strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -17,11 +16,11 @@ type HandlerFunc func(string, []byte) error
 
 type Nats struct {
 	url           string
-	bucket        string
 	subject       string
-	subjectPrefix string
+    stream        string
+    consumer      string
 	handler       HandlerFunc
-	bucketCh      <-chan jetstream.KeyValueEntry
+    messagesCh    jetstream.MessagesContext
 	started       bool
 	ctx           context.Context
 }
@@ -48,23 +47,34 @@ func Create(options ...func(*Nats) error) (*Nats, error) {
 
 	n.ctx, _ = context.WithTimeout(context.Background(), 100*time.Second)
 
-	kv, err := js.KeyValue(n.ctx, n.bucket)
+    stream, err := js.CreateStream(n.ctx, jetstream.StreamConfig{
+        Name: n.stream,
+        Subjects: []string{n.subject},
+    })
 	if err != nil {
 		panic(err)
 	}
 
-	w, err := kv.Watch(n.ctx, n.subject)
+    consumer, err := stream.CreateConsumer(n.ctx, jetstream.ConsumerConfig{
+        Durable: n.consumer,
+        AckPolicy: jetstream.AckExplicitPolicy,
+    })
 	if err != nil {
 		panic(err)
 	}
 
-	n.bucketCh = w.Updates()
+    messagesCh, err := consumer.Messages()
+	if err != nil {
+		panic(err)
+	}
+
+    n.messagesCh = messagesCh
 
 	return n, nil
 }
 
 func (n *Nats) Start() error {
-	if n.bucketCh == nil {
+	if n.messagesCh == nil {
 		panic("NATS listener not initialized")
 	}
 
@@ -72,25 +82,23 @@ func (n *Nats) Start() error {
 
 	go func() {
 		log.Debug("NATS handler thread spawned")
-		for u := range n.bucketCh {
-			if u != nil {
-				log.Debug("Data received on subject '%s'", u.Key())
-				subjectTrimmed, found := strings.CutPrefix(u.Key(), n.subjectPrefix)
-				if !found {
-					log.Warning("Unable to remove subject prefix, not found")
-				}
+        for {
+            msg, err := n.messagesCh.Next()
+            if err != nil {
+                panic(err)
+            }
 
-				/* aaand flip it around */
-				trimmedSplit := strings.Split(subjectTrimmed, ".")
-				slices.Reverse(trimmedSplit)
-				trimmedReversed := strings.Join(trimmedSplit, ".")
+            data := strings.Fields(string(msg.Data()))
 
-				err := n.handler(trimmedReversed, u.Value())
-				if err != nil {
-					panic(err)
-				}
-			}
-		}
+            // TODO validate incoming data
+
+			err = n.handler(data[0], []byte(data[1]))
+            if err != nil {
+                panic(err)
+            }
+
+            msg.Ack()
+        }
 
 		n.started = false
 	}()
@@ -112,14 +120,28 @@ func Url(url string) func(*Nats) error {
 	return fptr
 }
 
-func Bucket(bucket string) func(*Nats) error {
+func Stream(stream string) func(*Nats) error {
 	fptr := func(n *Nats) error {
 		if n.started {
-			return errors.New("Error configuring bucket, client already started")
+			return errors.New("Error configuring stream, client already started")
 		}
-		n.bucket = bucket
+		n.stream = stream
 
-		log.Info("NATS bucket configured: '%s'", n.bucket)
+		log.Info("NATS stream configured: '%s'", n.stream)
+		return nil
+	}
+
+	return fptr
+}
+
+func Consumer(consumer string) func(*Nats) error {
+	fptr := func(n *Nats) error {
+		if n.started {
+			return errors.New("Error configuring consumer, client already started")
+		}
+		n.consumer = consumer
+
+		log.Info("NATS consumer configured: '%s'", n.consumer)
 		return nil
 	}
 
@@ -132,15 +154,6 @@ func Subject(subject string) func(*Nats) error {
 			return errors.New("Error configuring subject, client already started")
 		}
 		n.subject = subject
-
-		idx := strings.IndexAny(subject, "*>")
-
-		/* Subject prefix will be trimmed from strings passed to handler */
-		if idx < 0 {
-			n.subjectPrefix = ""
-		} else {
-			n.subjectPrefix = subject[:idx]
-		}
 
 		log.Info("NATS subject configured: '%s'", n.subject)
 		return nil

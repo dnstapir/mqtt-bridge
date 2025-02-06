@@ -61,14 +61,19 @@ func main() {
 		"nats://127.0.0.1:4222",
 		"URL of NATS server",
 	)
-	flag.StringVar(&app.NatsBucket,
-		"nats-bucket",
-		"observations",
-		"Name of NATS bucket to track",
+	flag.StringVar(&app.NatsStream,
+		"nats-stream",
+		"TAPIR",
+		"NATS stream",
+	)
+	flag.StringVar(&app.NatsConsumer,
+		"nats-consumer",
+		"bridge",
+		"NATS durable consumer identifier",
 	)
 	flag.StringVar(&app.NatsSubject,
 		"nats-subject",
-		"tapir.core.events.observations.>",
+		"observations.down.tapir-pop",
 		"NATS subject string",
 	)
 
