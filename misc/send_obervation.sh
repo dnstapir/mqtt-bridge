@@ -1,7 +1,3 @@
 #!/bin/bash
 
-# TODO check if bucket exists first
-
-nats kv add observations
-
-nats kv put observations tapir.core.events.observations.$1 $2
+nats request observations.down.tapir-pop "$(cat sample_observation.json)"

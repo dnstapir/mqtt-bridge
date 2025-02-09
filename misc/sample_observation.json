@@ -1,0 +1,19 @@
+{
+    "SrcName": "dns-tapir",
+    "Creator": "",
+    "MsgType": "observation",
+    "ListType": "doubtlist",
+    "Added": [
+        {
+            "Name": "zoomyloomydoomylalalalala.se",
+            "TimeAdded": "2025-02-09T22:39:44.117722183+01:00",
+            "TTL": 3600,
+            "TagMask": 666,
+            "ExtendedTags": null
+        }
+    ],
+    "Removed": null,
+    "Msg": "",
+    "TimeStamp": "2025-02-09T22:39:44.117720898+01:00",
+    "TimeStr": ""
+}
