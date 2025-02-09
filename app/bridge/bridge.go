@@ -66,8 +66,6 @@ func Create(direction string, options ...bridgeOpt) (*tapirBridge, error) {
         newBridge.subject,
     )
 
-    // Make sure MQTT is up and running
-
     return newBridge, nil
 }
 
@@ -106,14 +104,24 @@ func (tb *tapirBridge) startDownbound() error {
         panic(err)
     }
 
-	go func() {
-		log.Debug("NATS handler thread spawned")
-        for msg := range tb.natsMsgCh {
-            defer msg.Ack()
-            log.Info("Got message '%s'", string(msg.Data))
+	go tb.loopDownbound()
 
-            // TODO Validate against schema here, somehow
+    return nil
+}
 
+func (tb *tapirBridge) loopDownbound() {
+	log.Info("Downbound loop started")
+
+    for msg := range tb.natsMsgCh {
+        log.Info("Got message '%s'", string(msg.Data))
+
+        // TODO Validate against schema here, somehow
+        ok, err := tb.validateWithSchema(msg.Data)
+        if err != nil {
+            panic(err)
+        }
+
+        if ok {
 	        // Do the signing sauce
             payload, err := jws.Sign(msg.Data, jws.WithJSON(), jws.WithKey(tb.dataKey.Algorithm(), tb.dataKey))
 	        if err != nil {
@@ -124,20 +132,23 @@ func (tb *tapirBridge) startDownbound() error {
 	        if err != nil {
 	        	panic(err)
 	        }
+        } else {
+            log.Error("Malformed data '%s', discarding...", string(msg.Data))
         }
-        tb.natsConn.Close()
-        close(tb.natsMsgCh) // TODO close these in the right order
-		log.Debug("NATS handler thread stopped")
-	}()
 
-    return nil
+        msg.Ack()
+    }
+
+    tb.natsConn.Close()
+    close(tb.natsMsgCh) // TODO close these in the right order
+
+	log.Info("Downbound loop stopped")
 }
 
 func (tb *tapirBridge) publishObservation(payload []byte) error {
 	if tb.mqttConnM == nil {
 		panic("MQTT not initialized")
 	}
-	log.Debug("attempting to publish '%s'", payload)
 
 	// Wait for the connection to come up
 	err := tb.mqttConnM.AwaitConnection(tb.ctx)
@@ -146,18 +157,18 @@ func (tb *tapirBridge) publishObservation(payload []byte) error {
 	}
 
 	mqttMsg := paho.Publish{
-		QoS:     2,
+		QoS:     0,
 		Topic:   tb.topic,
 		Payload: payload,
 		Retain:  false,
 	}
 
+	log.Debug("Attempting to publish on topic '%s'...", tb.topic)
 	_, err = tb.mqttConnM.Publish(tb.ctx, &mqttMsg)
 
 	if err != nil {
 		panic(err)
 	}
-
 	log.Debug("Published on topic '%s'!", tb.topic)
 
 	return nil
@@ -238,6 +249,14 @@ func (tb *tapirBridge) startDownboundMqtt() error {
 	tb.mqttConnM = cm
 
     return nil
+}
+
+func (tb *tapirBridge) validateWithSchema(data []byte) (bool, error) {
+    if tb.schema == "" {
+        log.Warning("No schema set for subject '%s'", tb.subject)
+    }
+
+    return true, nil
 }
 
 /*
