@@ -12,7 +12,6 @@ import (
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
 	"github.com/nats-io/nats.go"
-	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jws"
 
@@ -116,7 +115,7 @@ func (tb *tapirBridge) startDownbound() error {
             // TODO Validate against schema here, somehow
 
 	        // Do the signing sauce
-	        payload, err := jws.Sign(msg.Data, jws.WithJSON(), jws.WithKey(jwa.ES256, tb.dataKey)) // TODO check alg
+            payload, err := jws.Sign(msg.Data, jws.WithJSON(), jws.WithKey(tb.dataKey.Algorithm(), tb.dataKey))
 	        if err != nil {
 	        	panic(err)
 	        }
