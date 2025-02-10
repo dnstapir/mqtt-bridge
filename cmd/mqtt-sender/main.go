@@ -80,7 +80,7 @@ func main() {
 	)
 	flag.StringVar(&br.Schema,
 		"data-schema",
-		"", // TODO default value
+		"",
 		"Schema for checking data",
 	)
 

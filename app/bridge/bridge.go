@@ -1,6 +1,7 @@
 package bridge
 
 import (
+    "bytes"
     "context"
 	"crypto/tls"
 	"crypto/x509"
@@ -11,9 +12,10 @@ import (
 
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
-	"github.com/nats-io/nats.go"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/nats-io/nats.go"
+    "github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/dnstapir/mqtt-sender/app/log"
 )
@@ -32,7 +34,7 @@ type tapirBridge struct {
     subject          string
     queue            string
 	dataKey          jwk.Key
-    schema           string
+    schema           *jsonschema.Schema
 
     natsMsgCh  chan *nats.Msg
     natsConn   *nats.Conn
@@ -113,9 +115,8 @@ func (tb *tapirBridge) loopDownbound() {
 	log.Info("Downbound loop started")
 
     for msg := range tb.natsMsgCh {
-        log.Info("Got message '%s'", string(msg.Data))
+        log.Debug("Got message '%s'", string(msg.Data))
 
-        // TODO Validate against schema here, somehow
         ok, err := tb.validateWithSchema(msg.Data)
         if err != nil {
             panic(err)
@@ -252,8 +253,22 @@ func (tb *tapirBridge) startDownboundMqtt() error {
 }
 
 func (tb *tapirBridge) validateWithSchema(data []byte) (bool, error) {
-    if tb.schema == "" {
-        log.Warning("No schema set for subject '%s'", tb.subject)
+    if tb.schema == nil {
+        log.Error("No schema set for subject '%s'", tb.subject)
+        return false, errors.New("Cannot validate JSON without schema")
+    }
+
+    dataReader := bytes.NewReader(data)
+    obj, err := jsonschema.UnmarshalJSON(dataReader)
+    if err != nil {
+        return false, errors.New("Error unmarshalling byte stream into JSON object")
+    }
+
+    err = tb.schema.Validate(obj)
+    if err != nil {
+        // TODO handle error more explicitly, make sure is "ValidationError"
+        log.Debug("Validation error '%s'", err)
+        return false, nil
     }
 
     return true, nil
@@ -419,8 +434,20 @@ func Queue(queue string) bridgeOpt {
 
 func Schema(filename string) bridgeOpt {
 	fptr := func(tb *tapirBridge) error {
-        tb.schema = ""
-		log.Warning("Schema not supported yet!")
+        if filename == "" {
+            log.Warning("No JSON schema configured!")
+            return nil
+        }
+        // TODO support fetching from URL?
+
+        c := jsonschema.NewCompiler()
+        sch, err := c.Compile(filename)
+        if err != nil {
+            return err
+        }
+
+        tb.schema = sch
+
 		return nil
 	}
 
