@@ -58,10 +58,6 @@ func Create(direction string, options ...bridgeOpt) (*tapirBridge, error) {
 		}
 	}
 
-    if newBridge.isUpbound() {
-        return nil, errors.New("No support for 'up' bridges (yet)")
-    }
-
     log.Info("Done setting up %sbound bridge between %s and %s",
         newBridge.direction,
         newBridge.topic,
@@ -90,8 +86,83 @@ func (tb *tapirBridge) isUpbound() bool {
 }
 
 func (tb *tapirBridge) startUpbound() error {
-    // TODO implement
-    panic("No upbound support")
+	tb.ctx = context.Background() // TODO get this context thing right
+
+    /* For sanity, compare "kid" of data key and first DNSName SAN of tls cert */
+	cidDataKey := tb.dataKey.KeyID()
+	cidTlsCert := (*tb.clientCert.Leaf).DNSNames[0]
+	log.Info("JWK client ID: '%s', TLS cert client ID: '%s'", cidDataKey, cidTlsCert)
+
+	tb.clientId = cidDataKey
+
+	tlsCfg := tls.Config{
+		RootCAs:      tb.caCert,
+		Certificates: []tls.Certificate{tb.clientCert},
+		MinVersion:   tls.VersionTLS13,
+	}
+
+	if tb.enableKeylogfile {
+		tlsCfg.KeyLogWriter = tb.keylogfile
+	}
+
+	cfg := autopaho.ClientConfig{
+		ServerUrls: []*url.URL{tb.mqttUrl},
+		TlsCfg:     &tlsCfg,
+		KeepAlive:  20, // Keepalive message should be sent every 20 seconds
+		// CleanStartOnInitialConnection defaults to false. Setting this to true will clear the session on the first connection.
+		CleanStartOnInitialConnection: false,
+		// SessionExpiryInterval - Seconds that a session will survive after disconnection.
+		// It is important to set this because otherwise, any queued messages will be lost if the connection drops and
+		// the server will not queue messages while it is down. The specific setting will depend upon your needs
+		// (60 = 1 minute, 3600 = 1 hour, 86400 = one day, 0xFFFFFFFE = 136 years, 0xFFFFFFFF = don't expire)
+		SessionExpiryInterval: 60,
+		OnConnectionUp: func(cm *autopaho.ConnectionManager, connAck *paho.Connack) {
+			_, err := cm.Subscribe(tb.ctx, &paho.Subscribe{
+				Subscriptions: []paho.SubscribeOptions{
+					{Topic: tb.topic, QoS: 0},
+				},
+			})
+            if err != nil {
+				log.Error("subscribe: failed to subscribe (%s). Probably due to connection drop so will retry", err)
+				return // likely connection has dropped
+			}
+			log.Info("Subsribed to '%s'", tb.topic)
+		},
+		OnConnectError: func(err error) { log.Error("error whilst attempting connection: %s", err) },
+
+		// eclipse/paho.golang/paho provides base mqtt functionality, the below config will be passed in for each connection
+		ClientConfig: paho.ClientConfig{
+			// If you are using QOS 1/2, then it's important to specify a client id (which must be unique)
+			ClientID:      tb.clientId,
+			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
+				func(pr paho.PublishReceived) (bool, error) {
+                    panic("got message!")
+					return true, nil
+				}},
+			OnClientError: func(err error) { log.Error("client error: %s", err) },
+			OnServerDisconnect: func(d *paho.Disconnect) {
+				if d.Properties != nil {
+					log.Info("server requested disconnect: %s", d.Properties.ReasonString)
+				} else {
+					log.Info("server requested disconnect; reason code: %d", d.ReasonCode)
+				}
+			},
+		},
+	}
+
+	cm, err := autopaho.NewConnection(tb.ctx, cfg) // starts process; will reconnect until context cancelled
+	if err != nil {
+		panic(err)
+	}
+	tb.mqttConnM = cm
+
+	// Wait for the connection to come up
+	err = tb.mqttConnM.AwaitConnection(tb.ctx)
+	if err != nil {
+		panic(err)
+	}
+    log.Info("upbound started")
+
     return nil
 }
 
