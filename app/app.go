@@ -2,58 +2,57 @@ package app
 
 import (
 	"github.com/dnstapir/mqtt-sender/app/log"
-	"github.com/dnstapir/mqtt-sender/app/mqtt"
-	"github.com/dnstapir/mqtt-sender/app/nats"
+	"github.com/dnstapir/mqtt-sender/app/bridge"
 )
 
 type App struct {
 	Debug            bool
 	MqttUrl          string
-	MqttTopic        string
 	MqttCaCert       string
 	MqttClientCert   string
 	MqttClientKey    string
 	MqttEnableTlsKlf bool
 	MqttTlsKlfPath   string
-	MqttSigningKey   string
-	NatsUrl          string
-	NatsBucket       string
-	NatsSubject      string
+    NatsUrl          string
+    Bridges          []Bridge
+}
+
+type Bridge struct {
+    Direction     string
+    MqttTopic     string
+    NatsSubject   string
+    NatsQueue     string
+    Key           string
+    Schema        string
 }
 
 func (a App) Run() {
-	var err error
-
 	log.Initialize(a.Debug)
 	log.Info("Logging initialized")
 	log.Debug("Debug enabled")
 
-	/* Set up MQTT */
-	mqttClient, err := mqtt.Create(
-		mqtt.Url(a.MqttUrl),
-		mqtt.Topic(a.MqttTopic),
-		mqtt.CaCert(a.MqttCaCert),
-		mqtt.ClientCert(a.MqttClientCert, a.MqttClientKey),
-		mqtt.TlsKeylogfile(a.MqttEnableTlsKlf, a.MqttTlsKlfPath),
-		mqtt.SigningKey(a.MqttSigningKey),
-	)
-	if err != nil {
-		panic(err)
-	}
-	log.Info("MQTT client created")
+    for i, b := range a.Bridges {
+        newBridge, err := bridge.Create(b.Direction,
+		    bridge.MqttUrl(a.MqttUrl),
+		    bridge.CaCert(a.MqttCaCert),
+		    bridge.ClientCert(a.MqttClientCert, a.MqttClientKey),
+		    bridge.TlsKeylogfile(a.MqttEnableTlsKlf, a.MqttTlsKlfPath),
+		    bridge.NatsUrl(a.NatsUrl),
+		    bridge.Topic(b.MqttTopic),
+		    bridge.DataKey(b.Key),
+		    bridge.Subject(b.NatsSubject),
+		    bridge.Queue(b.NatsQueue),
+		    bridge.Schema(b.Schema),
+        )
+	    if err != nil {
+	    	panic(err)
+	    }
+	    log.Info("Bridge %d created", i)
 
-	/* Set up NATS */
-	natsListener, err := nats.Create(
-		nats.Url(a.NatsUrl),
-		nats.Bucket(a.NatsBucket),
-		nats.Subject(a.NatsSubject),
-		nats.Handler(mqttClient.Publish),
-	)
-	if err != nil {
-		panic(err)
-	}
-	log.Info("NATS listener created")
-
-	natsListener.Start()
-	log.Info("NATS listener started")
+        err = newBridge.Start()
+	    if err != nil {
+	    	panic(err)
+	    }
+	    log.Info("Bridge %d started", i)
+    }
 }

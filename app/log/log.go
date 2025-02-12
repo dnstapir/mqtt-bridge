@@ -39,5 +39,5 @@ func format(fmtStr string, a []any) string {
 		return fmtStr
 	}
 
-	return fmt.Sprintf(fmtStr, a)
+	return fmt.Sprintf(fmtStr, a...)
 }
