@@ -5,7 +5,7 @@ go 1.23.6
 require (
 	github.com/eclipse/paho.golang v0.21.0
 	github.com/lestrrat-go/jwx/v2 v2.1.3
-	github.com/nats-io/nats.go v1.38.0
+	github.com/nats-io/nats.go v1.39.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
 )
 
