@@ -40,7 +40,8 @@ type tapirBridge struct {
     natsConn   *nats.Conn
     mqttConnM  *autopaho.ConnectionManager
 	ctx        context.Context
-    clientId   string
+    clientId   string // TODO use TLS SAN + some unique string for this
+    count      uint16
 }
 
 func Create(direction string, options ...bridgeOpt) (*tapirBridge, error) {
@@ -134,11 +135,7 @@ func (tb *tapirBridge) startUpbound() error {
 		ClientConfig: paho.ClientConfig{
 			// If you are using QOS 1/2, then it's important to specify a client id (which must be unique)
 			ClientID:      tb.clientId,
-			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
-				func(pr paho.PublishReceived) (bool, error) {
-                    panic("got message!")
-					return true, nil
-				}},
+			OnPublishReceived: []func(paho.PublishReceived) (bool, error){tb.handleIncomingMqtt},
 			OnClientError: func(err error) { log.Error("client error: %s", err) },
 			OnServerDisconnect: func(d *paho.Disconnect) {
 				if d.Properties != nil {
@@ -161,9 +158,48 @@ func (tb *tapirBridge) startUpbound() error {
 	if err != nil {
 		panic(err)
 	}
+
+    // NATS startup, TODO move somewere else?
+    nc, err := nats.Connect(tb.natsUrl)
+    if err != nil {
+        return err
+    }
+    tb.natsConn = nc
+
     log.Info("upbound started")
 
     return nil
+}
+func (tb *tapirBridge) handleIncomingMqtt(pr paho.PublishReceived) (bool, error) {
+    log.Debug("Received message on client '%s'", pr.Client.ClientID())
+    for _, e := range pr.Errs {
+        log.Error("Error while receiving MQTT message: '%s'", e)
+    }
+
+    payload := pr.Packet.Payload
+    ok, err := tb.validateWithSchema(payload)
+    if err != nil {
+        panic(err)
+    }
+
+    if ok {
+            data, err := jws.Verify(payload, jws.WithJSON(), jws.WithKey(tb.dataKey.Algorithm(), tb.dataKey))
+	        if err != nil {
+	        	log.Error("Failed to verify signature on message '%d'. Discarding...", pr.Packet.PacketID)
+                return true, err
+	        }
+
+            log.Debug("Message signature was successfully validated! %s", data)
+            
+            err = tb.natsConn.Publish(tb.subject, data)
+	        if err != nil {
+                panic(err)
+	        }
+    } else {
+            log.Error("Malformed data '%s', discarding...", string(payload))
+    }
+
+	return true, nil
 }
 
 func (tb *tapirBridge) startDownbound() error {
@@ -233,6 +269,7 @@ func (tb *tapirBridge) publishObservation(payload []byte) error {
 		Topic:   tb.topic,
 		Payload: payload,
 		Retain:  false,
+        PacketID: tb.count,
 	}
 
 	log.Debug("Attempting to publish on topic '%s'...", tb.topic)
@@ -242,6 +279,7 @@ func (tb *tapirBridge) publishObservation(payload []byte) error {
 		panic(err)
 	}
 	log.Debug("Published on topic '%s'!", tb.topic)
+    tb.count += 1
 
 	return nil
 }
