@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/dnstapir/mqtt-sender/app/log"
-	"github.com/dnstapir/mqtt-sender/app/bridge"
+	"github.com/dnstapir/mqtt-bridge/app/log"
+	"github.com/dnstapir/mqtt-bridge/app/bridge"
 )
 
 type App struct {

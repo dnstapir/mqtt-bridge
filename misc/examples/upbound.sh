@@ -1,6 +1,6 @@
 # An example deployment of how to bridge from MQTT->NATS
 
-mqtt-sender -mqtt-url "tls://mqtt.dev.dnstapir.se:8883" \
+mqtt-bridge -mqtt-url "tls://mqtt.dev.dnstapir.se:8883" \
     -debug \
     -direction up \
     -data-key certs/eldorado-jet.pub.json \
