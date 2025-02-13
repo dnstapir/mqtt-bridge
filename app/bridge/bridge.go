@@ -17,7 +17,7 @@ import (
 	"github.com/nats-io/nats.go"
     "github.com/santhosh-tekuri/jsonschema/v6"
 
-	"github.com/dnstapir/mqtt-sender/app/log"
+	"github.com/dnstapir/mqtt-bridge/app/log"
 )
 
 type bridgeOpt func(*tapirBridge) error

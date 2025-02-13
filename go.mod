@@ -1,4 +1,4 @@
-module github.com/dnstapir/mqtt-sender
+module github.com/dnstapir/mqtt-bridge
 
 go 1.23.6
 

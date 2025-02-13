@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/dnstapir/mqtt-sender/app"
+	"github.com/dnstapir/mqtt-bridge/app"
 )
 
 func main() {
@@ -86,16 +86,16 @@ func main() {
 
 	flag.Parse()
 
-	klfPath := os.Getenv("TAPIR_MQTT_SENDER_KLF")
+	klfPath := os.Getenv("TAPIR_MQTT_BRIDGE_KLF")
 	if klfPath != "" {
 		application.MqttTlsKlfPath = klfPath
 	}
 
     application.Bridges = []app.Bridge{br}
 
-	fmt.Println("###### starting mqtt-sender...")
+	fmt.Println("###### starting mqtt-bridge...")
 	application.Run()
 
 	s := <-c
-	fmt.Println(fmt.Sprintf("###### mqtt-sender got signal '%s', exiting...", s))
+	fmt.Println(fmt.Sprintf("###### mqtt-bridge got signal '%s', exiting...", s))
 }
