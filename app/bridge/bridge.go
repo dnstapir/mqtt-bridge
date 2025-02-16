@@ -177,27 +177,46 @@ func (tb *tapirBridge) handleIncomingMqtt(pr paho.PublishReceived) (bool, error)
     }
 
     payload := pr.Packet.Payload
-    ok, err := tb.validateWithSchema(payload)
+
+    jwsMsg, err := jws.Parse(payload, jws.WithJSON())
     if err != nil {
+		log.Error("Malformed JWS message '%s'. Discarding...", string(payload))
+        return true, err
+    }
+
+    sigs := jwsMsg.Signatures()
+    if len(sigs) > 1 {
+        log.Warning("JWS message '%d' contains multiple signatures. Only one will be used", pr.Packet.PacketID)
+    } else if len(sigs) == 0 {
+        log.Error("JWS message '%d' contained no signatures. Discarding...", pr.Packet.PacketID)
+        return true, errors.New("JWS message contained no signatures")
+    }
+
+    alg := sigs[0].ProtectedHeaders().Algorithm()
+
+    data, err := jws.Verify(payload, jws.WithJSON(), jws.WithKey(alg, tb.dataKey))
+	if err != nil {
+		log.Error("Failed to verify signature on message '%d'. Discarding...", pr.Packet.PacketID)
+        return true, err
+	}
+    log.Debug("Message signature was successfully validated! %s", data)
+
+    ok, err := tb.validateWithSchema(data)
+    if err != nil {
+		log.Error("Error validating message '%d' against schema. Discarding...", pr.Packet.PacketID)
+        return true, err
+    }
+
+    if !ok {
+		log.Error("Malformed data on message '%d'. Discarding...", pr.Packet.PacketID)
+        return true, err
+    }
+    log.Debug("Message conforms to schema")
+
+    err = tb.natsConn.Publish(tb.subject, data)
+	if err != nil {
         panic(err)
-    }
-
-    if ok {
-            data, err := jws.Verify(payload, jws.WithJSON(), jws.WithKey(tb.dataKey.Algorithm(), tb.dataKey))
-	        if err != nil {
-	        	log.Error("Failed to verify signature on message '%d'. Discarding...", pr.Packet.PacketID)
-                return true, err
-	        }
-
-            log.Debug("Message signature was successfully validated! %s", data)
-            
-            err = tb.natsConn.Publish(tb.subject, data)
-	        if err != nil {
-                panic(err)
-	        }
-    } else {
-            log.Error("Malformed data '%s', discarding...", string(payload))
-    }
+	}
 
 	return true, nil
 }
