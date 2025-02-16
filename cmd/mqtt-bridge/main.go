@@ -75,13 +75,18 @@ func main() {
 	)
 	flag.StringVar(&br.Key,
 		"data-key",
-		"certs/sign.jwk",
-		"Key for signing data sent via MQTT",
+		"",
+		"Key for signing/validating data sent via MQTT",
 	)
 	flag.StringVar(&br.Schema,
 		"data-schema",
 		"",
 		"Schema for checking data",
+	)
+	flag.StringVar(&application.NodemanApiUrl,
+		"nodeman-api-url",
+		"",
+		"Endpoint for Nodeman API",
 	)
 
 	flag.Parse()
@@ -91,7 +96,7 @@ func main() {
 		application.MqttTlsKlfPath = klfPath
 	}
 
-    application.Bridges = []app.Bridge{br}
+	application.Bridges = []app.Bridge{br}
 
 	fmt.Println("###### starting mqtt-bridge...")
 	application.Run()
