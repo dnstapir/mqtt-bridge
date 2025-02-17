@@ -45,7 +45,6 @@ type tapirBridge struct {
 	natsConn   *nats.Conn
 	mqttConnM  *autopaho.ConnectionManager
 	ctx        context.Context
-	clientId   string // TODO use TLS SAN + some unique string for this
 	count      uint16
 	httpClient http.Client
 
@@ -111,8 +110,6 @@ func (tb *tapirBridge) startUpbound() error {
 	cidTlsCert := (*tb.clientCert.Leaf).DNSNames[0]
 	log.Info("TLS cert client ID: '%s'", cidTlsCert)
 
-	tb.clientId = cidTlsCert
-
 	tlsCfg := tls.Config{
 		RootCAs:      tb.caCert,
 		Certificates: []tls.Certificate{tb.clientCert},
@@ -151,7 +148,6 @@ func (tb *tapirBridge) startUpbound() error {
 		// eclipse/paho.golang/paho provides base mqtt functionality, the below config will be passed in for each connection
 		ClientConfig: paho.ClientConfig{
 			// If you are using QOS 1/2, then it's important to specify a client id (which must be unique)
-			ClientID:          tb.clientId,
 			OnPublishReceived: []func(paho.PublishReceived) (bool, error){tb.handleIncomingMqtt},
 			OnClientError:     func(err error) { log.Error("client error: %s", err) },
 			OnServerDisconnect: func(d *paho.Disconnect) {
@@ -188,7 +184,6 @@ func (tb *tapirBridge) startUpbound() error {
 	return nil
 }
 func (tb *tapirBridge) handleIncomingMqtt(pr paho.PublishReceived) (bool, error) {
-	log.Debug("Received message on client '%s'", pr.Client.ClientID())
 	for _, e := range pr.Errs {
 		log.Error("Error while receiving MQTT message: '%s'", e)
 	}
@@ -380,11 +375,9 @@ func (tb *tapirBridge) startDownboundMqtt() error {
 	tb.ctx = context.Background() // TODO get this context thing right
 
 	/* For sanity, compare "kid" of data key and first DNSName SAN of tls cert */
-	cidDataKey := tb.dataKey.KeyID()
-	cidTlsCert := (*tb.clientCert.Leaf).DNSNames[0]
-	log.Info("JWK client ID: '%s', TLS cert client ID: '%s'", cidDataKey, cidTlsCert)
-
-	tb.clientId = cidTlsCert
+	kidDataKey := tb.dataKey.KeyID()
+	sanTlsCert := (*tb.clientCert.Leaf).DNSNames[0]
+	log.Info("JWK keyID: '%s', TLS cert SAN: '%s'", kidDataKey, sanTlsCert)
 
 	tlsCfg := tls.Config{
 		RootCAs:      tb.caCert,
@@ -415,7 +408,6 @@ func (tb *tapirBridge) startDownboundMqtt() error {
 		// eclipse/paho.golang/paho provides base mqtt functionality, the below config will be passed in for each connection
 		ClientConfig: paho.ClientConfig{
 			// If you are using QOS 1/2, then it's important to specify a client id (which must be unique)
-			ClientID:      tb.clientId,
 			OnClientError: func(err error) { log.Error("client error: %s", err) },
 			OnServerDisconnect: func(d *paho.Disconnect) {
 				if d.Properties != nil {
