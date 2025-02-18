@@ -15,6 +15,7 @@ import (
 
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/nats-io/nats.go"
@@ -49,8 +50,10 @@ type tapirBridge struct {
 	count      uint16
 	httpClient http.Client
 
-	validationKeyMap map[string]jwk.Key
+	validationKeyCache *lru.Cache[string, jwk.Key]
 }
+
+const validateKeyCacheSize = 1000
 
 func Create(direction string, options ...bridgeOpt) (*tapirBridge, error) {
 	if direction != "up" && direction != "down" {
@@ -74,7 +77,11 @@ func Create(direction string, options ...bridgeOpt) (*tapirBridge, error) {
 			log.Warning("Using both remote and local validation keys")
 		}
 
-		newBridge.validationKeyMap = make(map[string]jwk.Key)
+		var err error
+		newBridge.validationKeyCache, err = lru.New[string, jwk.Key](validateKeyCacheSize)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	log.Info("Done setting up %sbound bridge between %s and %s",
@@ -210,12 +217,12 @@ func (tb *tapirBridge) handleIncomingMqtt(pr paho.PublishReceived) (bool, error)
 	}
 
 	jwsKid := sigs[0].ProtectedHeaders().KeyID()
-    if jwsKid == "" {
-        log.Error("Incoming JWS had no \"kid\" set. Discarding...")
-        return true, errors.New("Incoming JWS had no \"kid\" set")
-    }
+	if jwsKid == "" {
+		log.Error("Incoming JWS had no \"kid\" set. Discarding...")
+		return true, errors.New("Incoming JWS had no \"kid\" set")
+	}
 	jwsAlg := sigs[0].ProtectedHeaders().Algorithm()
-	jwsKey, ok := tb.validationKeyMap[jwsKid]
+	jwsKey, ok := tb.validationKeyCache.Get(jwsKid)
 
 	if !ok {
 		req, err := http.NewRequest("GET",
@@ -246,7 +253,7 @@ func (tb *tapirBridge) handleIncomingMqtt(pr paho.PublishReceived) (bool, error)
 			log.Warning("Mismatch between Key IDs in JWS '%s' and '%s'", newJwk.KeyID(), jwsKid)
 		}
 
-		tb.validationKeyMap[jwsKid] = newJwk
+		tb.validationKeyCache.Add(jwsKid, newJwk)
 		jwsKey = newJwk
 
 		log.Info("Adding new key '%s' to cache", newJwk.KeyID())
