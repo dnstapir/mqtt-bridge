@@ -210,6 +210,10 @@ func (tb *tapirBridge) handleIncomingMqtt(pr paho.PublishReceived) (bool, error)
 	}
 
 	jwsKid := sigs[0].ProtectedHeaders().KeyID()
+    if jwsKid == "" {
+        log.Error("Incoming JWS had no \"kid\" set. Discarding...")
+        return true, errors.New("Incoming JWS had no \"kid\" set")
+    }
 	jwsAlg := sigs[0].ProtectedHeaders().Algorithm()
 	jwsKey, ok := tb.validationKeyMap[jwsKid]
 
@@ -239,23 +243,21 @@ func (tb *tapirBridge) handleIncomingMqtt(pr paho.PublishReceived) (bool, error)
 		}
 
 		if newJwk.KeyID() != jwsKid {
-			log.Error("Mismatch between Key IDs in JWS '%s' and '%s'", newJwk.KeyID(), jwsKid)
-			return true, errors.New("Mismatch between Key IDs in JWS, discarding...")
+			log.Warning("Mismatch between Key IDs in JWS '%s' and '%s'", newJwk.KeyID(), jwsKid)
 		}
 
-		tb.validationKeyMap[newJwk.KeyID()] = newJwk
+		tb.validationKeyMap[jwsKid] = newJwk
 		jwsKey = newJwk
 
 		log.Info("Adding new key '%s' to cache", newJwk.KeyID())
 	}
-	log.Debug("Message signature was successfully validated! Used key '%s'", jwsKid)
 
 	data, err := jws.Verify(payload, jws.WithJSON(), jws.WithKey(jwsAlg, jwsKey))
 	if err != nil {
 		log.Error("Failed to verify signature on message '%d'. Discarding...", pr.Packet.PacketID)
 		return true, err
 	}
-	log.Debug("Message signature was successfully validated! %s", data)
+	log.Debug("Message signature was successfully validated! Used key '%s'", jwsKid)
 
 	ok, err = tb.validateWithSchema(data)
 	if err != nil {
