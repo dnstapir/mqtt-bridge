@@ -77,7 +77,11 @@ func Create(direction string, options ...bridgeOpt) (*tapirBridge, error) {
 			log.Warning("Using both remote and local validation keys")
 		}
 
-		newBridge.validationKeyCache, _ = lru.New[string, jwk.Key](validateKeyCacheSize)
+        var err error
+        newBridge.validationKeyCache, err = lru.New[string, jwk.Key](validateKeyCacheSize)
+        if err != nil {
+            return nil, err
+        }
 	}
 
 	log.Info("Done setting up %sbound bridge between %s and %s",
