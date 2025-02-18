@@ -77,11 +77,11 @@ func Create(direction string, options ...bridgeOpt) (*tapirBridge, error) {
 			log.Warning("Using both remote and local validation keys")
 		}
 
-        var err error
-        newBridge.validationKeyCache, err = lru.New[string, jwk.Key](validateKeyCacheSize)
-        if err != nil {
-            return nil, err
-        }
+		var err error
+		newBridge.validationKeyCache, err = lru.New[string, jwk.Key](validateKeyCacheSize)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	log.Info("Done setting up %sbound bridge between %s and %s",
@@ -217,10 +217,10 @@ func (tb *tapirBridge) handleIncomingMqtt(pr paho.PublishReceived) (bool, error)
 	}
 
 	jwsKid := sigs[0].ProtectedHeaders().KeyID()
-    if jwsKid == "" {
-        log.Error("Incoming JWS had no \"kid\" set. Discarding...")
-        return true, errors.New("Incoming JWS had no \"kid\" set")
-    }
+	if jwsKid == "" {
+		log.Error("Incoming JWS had no \"kid\" set. Discarding...")
+		return true, errors.New("Incoming JWS had no \"kid\" set")
+	}
 	jwsAlg := sigs[0].ProtectedHeaders().Algorithm()
 	jwsKey, ok := tb.validationKeyCache.Get(jwsKid)
 
