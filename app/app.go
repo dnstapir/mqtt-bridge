@@ -45,7 +45,7 @@ func (a App) Run() {
             Ctx:        a.Ctx,
     }
 
-    if a.MqttEnableTlsKlf && mqttConf.Keylogfile != "" {
+    if a.MqttEnableTlsKlf && a.MqttTlsKlfPath != "" {
         mqttConf.Keylogfile = a.MqttTlsKlfPath + "_mqtt"
     }
 
