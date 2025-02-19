@@ -3,3 +3,6 @@ certs/
 
 # Don't commit built binaries
 bin/
+
+# Ignore default conf file
+config.yaml
