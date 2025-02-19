@@ -49,7 +49,10 @@ func (a App) Run() {
         mqttConf.Keylogfile = a.MqttTlsKlfPath + "_mqtt"
     }
 
-    mqtt.Create(mqttConf)
+    err := mqtt.Create(mqttConf)
+    if err != nil {
+        panic(err)
+    }
 
 	for i, b := range a.Bridges {
 		newBridge, err := bridge.Create(b.Direction, i+1000,
@@ -68,7 +71,10 @@ func (a App) Run() {
 		log.Info("Bridge %d created", i)
 
         if b.Direction == "up" {
-            mqtt.Subscribe(newBridge.Topic(), newBridge.IncomingPktHandler, newBridge.BridgeID())
+            err := mqtt.Subscribe(newBridge.Topic(), newBridge.IncomingPktHandler, newBridge.BridgeID())
+            if err != nil {
+                panic(err)
+            }
         } else if b.Direction == "down" {
             newBridge.SetPublishMethod(mqtt.Publish)
         } else {
