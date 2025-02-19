@@ -49,7 +49,7 @@ func (a App) Run() {
         mqttConf.Keylogfile = a.MqttTlsKlfPath + "_mqtt"
     }
 
-    err := mqtt.Create(mqttConf)
+    err := mqtt.Init(mqttConf)
     if err != nil {
         panic(err)
     }

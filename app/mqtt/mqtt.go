@@ -25,11 +25,12 @@ type Conf struct {
 }
 
 var (
-    mqttConnM  *autopaho.ConnectionManager
-    mqttCtx    context.Context
+    mqttConnM         *autopaho.ConnectionManager
+    mqttCtx           context.Context
+    mqttSubscriptions []paho.Subscribe
 )
 
-func Create(conf Conf) error {
+func Init(conf Conf) error {
     /* Parse the URL */
 	mqttUrl, err := url.Parse(conf.Url)
 	if err != nil {
@@ -71,6 +72,9 @@ func Create(conf Conf) error {
 			return errors.New("Error opening MQTT keylogfile for writing")
 		}
     }
+
+    /* Create a place to remember subscriptions */
+    mqttSubscriptions = make([]paho.Subscribe, 0)
 
     /* Configure paho/autopaho */
 	tlsCfg := tls.Config{
@@ -114,6 +118,7 @@ func Create(conf Conf) error {
 		panic(err)
 	}
 
+    log.Info("Initialized MQTT singleton")
 	return nil
 }
 
@@ -160,6 +165,8 @@ func Subscribe(topic string, handler func([]byte) (bool, error), subID *int) err
     }
     log.Info("Subscribed: %+v", ack)
 
+    mqttSubscriptions = append(mqttSubscriptions, sub)
+
     return nil
 }
 
@@ -197,6 +204,13 @@ func onServerDisconnect(d *paho.Disconnect) {
 
 func onConnectionUp(cm *autopaho.ConnectionManager, connAck *paho.Connack) {
     log.Info("connection up")
+    for _, sub := range mqttSubscriptions {
+        ack, err := cm.Subscribe(mqttCtx, &sub)
+        if err != nil {
+            panic(err)
+        }
+        log.Info("Subscribed via 'onConnectionUp': %+v", ack)
+    }
 }
 
 func onConnectError(err error) {
