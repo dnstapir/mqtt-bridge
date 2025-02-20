@@ -41,30 +41,39 @@ func Init(conf Conf) error {
 
 	log.Info("Url configured: '%s'", conf.Url)
 
+    /* Create a place to remember subscriptions */
+    mqttSubscriptions = make([]paho.Subscribe, 0)
+
     /* Read the CA cert */
-	caCertPool := x509.NewCertPool()
-	cert, err := os.ReadFile(conf.CaCert)
-	if err != nil {
-		return errors.New("Error reading CA cert")
-	}
+    var caCertPool *x509.CertPool = nil
+    if conf.CaCert != "" {
+	    caCertPool = x509.NewCertPool()
+        cert, err := os.ReadFile(conf.CaCert)
+	    if err != nil {
+	    	return errors.New("Error reading CA cert")
+	    }
 
-	ok := caCertPool.AppendCertsFromPEM([]byte(cert))
+	    ok := caCertPool.AppendCertsFromPEM([]byte(cert))
+	    if !ok {
+	    	return errors.New("Error adding CA cert")
+	    }
 
-	if !ok {
-		return errors.New("Error adding CA cert")
-	}
-
-	log.Info("CA cert configured: '%s'", conf.CaCert)
+	    log.Info("CA cert configured: '%s'", conf.CaCert)
+    }
 
     /* Read the client cert and key */
-	clientCert, err := tls.LoadX509KeyPair(conf.ClientCert, conf.ClientKey)
+    var clientCert tls.Certificate
+    clientCertFound := false
+    if conf.ClientCert != "" && conf.ClientKey != "" {
+        clientCert, err = tls.LoadX509KeyPair(conf.ClientCert, conf.ClientKey)
+	    if err != nil {
+	    	return errors.New("Error setting up client certs")
+	    }
 
-	if err != nil {
-		return errors.New("Error setting up client certs")
-	}
-
-	log.Info("Client cert configured: '%s', '%s'", conf.ClientCert, conf.ClientKey)
-	log.Info("TLS cert client ID: '%s'", (*clientCert.Leaf).DNSNames[0])
+	    log.Info("Client cert configured: '%s', '%s'", conf.ClientCert, conf.ClientKey)
+	    log.Info("TLS cert client ID: '%s'", (*clientCert.Leaf).DNSNames[0])
+        clientCertFound = true
+    }
 
     /* Handle keylogfile, if enabled */
     var keylogfile *os.File = nil
@@ -75,20 +84,7 @@ func Init(conf Conf) error {
 		}
     }
 
-    /* Create a place to remember subscriptions */
-    mqttSubscriptions = make([]paho.Subscribe, 0)
-
     /* Configure paho/autopaho */
-	tlsCfg := tls.Config{
-		RootCAs:             caCertPool,
-		Certificates:        []tls.Certificate{clientCert},
-		MinVersion:          tls.VersionTLS13,
-	}
-
-    if keylogfile != nil {
-        tlsCfg.KeyLogWriter = keylogfile
-    }
-
     pahoCfg := paho.ClientConfig{
 		OnClientError:      onClientError,
 		OnServerDisconnect: onServerDisconnect,
@@ -96,7 +92,6 @@ func Init(conf Conf) error {
 
 	cfg := autopaho.ClientConfig{
 		ServerUrls:                    []*url.URL{mqttUrl},
-		TlsCfg:                        &tlsCfg,
 		KeepAlive:                     20,
 		CleanStartOnInitialConnection: false,
 		SessionExpiryInterval:         60,
@@ -104,6 +99,26 @@ func Init(conf Conf) error {
 		OnConnectError:                onConnectError,
 		ClientConfig:                  pahoCfg,
 	}
+
+    /* Configure TLS, if configured */
+    if caCertPool != nil {
+	    tlsCfg := tls.Config{
+	    	RootCAs:             caCertPool,
+	    	MinVersion:          tls.VersionTLS13,
+	    }
+
+        if clientCertFound {
+	    	tlsCfg.Certificates = []tls.Certificate{clientCert}
+        }
+
+        if keylogfile != nil {
+            tlsCfg.KeyLogWriter = keylogfile
+        }
+
+		cfg.TlsCfg = &tlsCfg
+    } else {
+        log.Info("No CA set for MQTT TLS, will use unencrypted connection")
+    }
 
     /* Connect to MQTT Broker */
     mqttCtx = conf.Ctx
@@ -113,13 +128,12 @@ func Init(conf Conf) error {
 		panic(err)
 	}
 
-    log.Info("MQTT connection accepted")
-
 	err = mqttConnM.AwaitConnection(mqttCtx)
 	if err != nil {
 		panic(err)
 	}
 
+    log.Info("MQTT connection accepted")
     log.Info("Initialized MQTT singleton")
 	return nil
 }
