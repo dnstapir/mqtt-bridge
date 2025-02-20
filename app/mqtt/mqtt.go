@@ -8,6 +8,7 @@ import (
     "errors"
     "net/url"
     "os"
+    "sync"
 
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
@@ -27,6 +28,7 @@ type Conf struct {
 var (
     mqttConnM         *autopaho.ConnectionManager
     mqttCtx           context.Context
+    subscriptionsMu   sync.Mutex
     mqttSubscriptions []paho.Subscribe
 )
 
@@ -165,6 +167,8 @@ func Subscribe(topic string, handler func([]byte) (bool, error), subID *int) err
     }
     log.Info("Subscribed: %+v", ack)
 
+    subscriptionsMu.Lock()
+    defer subscriptionsMu.Unlock()
     mqttSubscriptions = append(mqttSubscriptions, sub)
 
     return nil
@@ -204,6 +208,8 @@ func onServerDisconnect(d *paho.Disconnect) {
 
 func onConnectionUp(cm *autopaho.ConnectionManager, connAck *paho.Connack) {
     log.Info("connection up")
+    subscriptionsMu.Lock()
+    defer subscriptionsMu.Unlock()
     for _, sub := range mqttSubscriptions {
         ack, err := cm.Subscribe(mqttCtx, &sub)
         if err != nil {
