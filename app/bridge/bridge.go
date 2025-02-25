@@ -176,6 +176,8 @@ func (tb *tapirBridge) IncomingPktHandler(payload []byte) (bool, error) {
 		panic(err)
 	}
 
+    log.Debug("Published to NATS: %s", string(data))
+
 	return true, nil
 }
 

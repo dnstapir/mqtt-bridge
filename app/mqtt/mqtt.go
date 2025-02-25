@@ -141,7 +141,9 @@ func Init(conf Conf) error {
 func Subscribe(topic string, handler func([]byte) (bool, error), subID *int) error {
     mqttConnM.AddOnPublishReceived(func(pr autopaho.PublishReceived) (bool, error) {
 	    for _, e := range pr.Errs {
-            log.Error("Error while receiving MQTT message: '%s'", e)
+            if e != nil {
+                log.Error("Error while receiving MQTT message: '%s'", e)
+            }
 	    }
 
         if pr.AlreadyHandled {
