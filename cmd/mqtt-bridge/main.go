@@ -8,8 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
+    "github.com/pelletier/go-toml/v2"
+
 	"github.com/dnstapir/mqtt-bridge/app"
-	"github.com/goccy/go-yaml"
 )
 
 func main() {
@@ -22,7 +23,7 @@ func main() {
 
 	flag.StringVar(&filename,
 		"config-file",
-		"config.yaml",
+		"config.toml",
 		"Bridge config file",
 	)
 
@@ -33,7 +34,10 @@ func main() {
 		panic(err)
 	}
 
-	yaml.Unmarshal(file, &application)
+    err = toml.Unmarshal(file, &application)
+	if err != nil {
+		panic(err)
+	}
 
     fmt.Printf("Read conf %+v\n", application)
 

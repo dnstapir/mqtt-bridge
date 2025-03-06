@@ -6,3 +6,4 @@ bin/
 
 # Ignore default conf file
 config.yaml
+config.toml
