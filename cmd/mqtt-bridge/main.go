@@ -1,14 +1,14 @@
 package main
 
 import (
-    "context"
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-    "github.com/pelletier/go-toml/v2"
+	"github.com/pelletier/go-toml/v2"
 
 	"github.com/dnstapir/mqtt-bridge/app"
 )
@@ -17,7 +17,7 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 
-    var filename string
+	var filename string
 
 	var application app.App
 
@@ -29,22 +29,22 @@ func main() {
 
 	flag.Parse()
 
-    file, err := os.ReadFile(filename)
+	file, err := os.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
 
-    err = toml.Unmarshal(file, &application)
+	err = toml.Unmarshal(file, &application)
 	if err != nil {
 		panic(err)
 	}
 
-    fmt.Printf("Read conf %+v\n", application)
+	fmt.Printf("Read conf %+v\n", application)
 
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-    application.Ctx = ctx
+	application.Ctx = ctx
 
 	fmt.Println("###### starting mqtt-bridge...")
 	go application.Run()

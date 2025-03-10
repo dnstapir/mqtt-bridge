@@ -29,13 +29,13 @@ type tapirBridge struct {
 	enableKeylogfile  bool
 	natsUrl           string
 	topic             string
-    bridgeID          int
+	bridgeID          int
 	subject           string
 	queue             string
 	dataKey           jwk.Key
 	schema            *jsonschema.Schema
 	nodemanApi        *url.URL
-    publish           func(string, []byte) error
+	publish           func(string, []byte) error
 
 	natsMsgCh  chan *nats.Msg
 	natsConn   *nats.Conn
@@ -54,7 +54,7 @@ func Create(direction string, id int, options ...bridgeOpt) (*tapirBridge, error
 
 	newBridge := new(tapirBridge)
 	newBridge.direction = direction
-    newBridge.bridgeID = id
+	newBridge.bridgeID = id
 
 	for _, opt := range options {
 		err := opt(newBridge)
@@ -87,11 +87,11 @@ func Create(direction string, id int, options ...bridgeOpt) (*tapirBridge, error
 }
 
 func (tb *tapirBridge) Topic() string {
-    return tb.topic
+	return tb.topic
 }
 
 func (tb *tapirBridge) BridgeID() *int {
-    return &tb.bridgeID
+	return &tb.bridgeID
 }
 
 func (tb *tapirBridge) IncomingPktHandler(payload []byte) (bool, error) {
@@ -176,13 +176,13 @@ func (tb *tapirBridge) IncomingPktHandler(payload []byte) (bool, error) {
 		panic(err)
 	}
 
-    log.Debug("Published to NATS: %s", string(data))
+	log.Debug("Published to NATS: %s", string(data))
 
 	return true, nil
 }
 
 func (tb *tapirBridge) SetPublishMethod(f func(string, []byte) error) {
-    tb.publish = f
+	tb.publish = f
 }
 
 func (tb *tapirBridge) Start() error {
@@ -235,9 +235,9 @@ func (tb *tapirBridge) startDownbound() error {
 }
 
 func (tb *tapirBridge) loopDownbound() {
-    if tb.publish == nil {
-        panic(errors.New("No publish method set"))
-    }
+	if tb.publish == nil {
+		panic(errors.New("No publish method set"))
+	}
 
 	log.Info("Downbound loop started")
 
@@ -459,7 +459,7 @@ func NodemanApiUrl(urlRaw string) bridgeOpt {
 	fptr := func(tb *tapirBridge) error {
 		if !tb.isUpbound() {
 			if urlRaw != "" {
-                log.Info("Nodeman URL '%s' will be ignored for downbound bridges", urlRaw)
+				log.Info("Nodeman URL '%s' will be ignored for downbound bridges", urlRaw)
 			}
 		}
 

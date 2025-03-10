@@ -1,7 +1,7 @@
 package main
 
 import (
-    "context"
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -99,10 +99,10 @@ func main() {
 
 	application.Bridges = []app.Bridge{br}
 
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-    application.Ctx = ctx
+	application.Ctx = ctx
 
 	fmt.Println("###### starting mqtt-bridge...")
 	go application.Run()
