@@ -3,7 +3,9 @@ package bridge
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -46,6 +48,10 @@ type tapirBridge struct {
 }
 
 const validateKeyCacheSize = 1000
+const natshdr_DNSTAPIR_MESSAGE_SCHEMA = "DNSTAPIR-Message-Schema"
+const natshdr_DNSTAPIR_MQTT_TOPIC = "DNSTAPIR-Mqtt-Topic"
+const natshdr_DNSTAPIR_KEY_IDENTIFIER = "DNSTAPIR-Key-Identifier"
+const natshdr_DNSTAPIR_KEY_THUMBPRINT = "DNSTAPIR-Key-Thumbprint"
 
 func Create(direction string, id int, options ...bridgeOpt) (*tapirBridge, error) {
 	if direction != "up" && direction != "down" {
@@ -171,7 +177,28 @@ func (tb *tapirBridge) IncomingPktHandler(payload []byte) (bool, error) {
 	}
 	log.Debug("Message conforms to schema")
 
-	err = tb.natsConn.Publish(tb.subject, data)
+	msg := nats.NewMsg(tb.subject)
+	msg.Data = data
+
+	msg.Header.Add(natshdr_DNSTAPIR_MESSAGE_SCHEMA, tb.schema.ID)
+	log.Debug("Setting NATS header, '%s: %s'", natshdr_DNSTAPIR_MESSAGE_SCHEMA, tb.schema.ID)
+
+	msg.Header.Add(natshdr_DNSTAPIR_MQTT_TOPIC, tb.topic)
+	log.Debug("Setting NATS header, '%s: %s'", natshdr_DNSTAPIR_MQTT_TOPIC, tb.topic)
+
+	msg.Header.Add(natshdr_DNSTAPIR_KEY_IDENTIFIER, jwsKid)
+	log.Debug("Setting NATS header, '%s: %s'", natshdr_DNSTAPIR_KEY_IDENTIFIER, jwsKid)
+
+	thumbprint, err := jwsKey.Thumbprint(crypto.SHA256)
+	if err != nil {
+		log.Warning("Could not calculate thumbprint for JWK. Reason: '%s'", err)
+	} else {
+		encoded := base64.URLEncoding.EncodeToString(thumbprint)
+		msg.Header.Add(natshdr_DNSTAPIR_KEY_THUMBPRINT, encoded)
+		log.Debug("Setting NATS header, '%s: %s'", natshdr_DNSTAPIR_KEY_THUMBPRINT, encoded)
+	}
+
+	err = tb.natsConn.PublishMsg(msg)
 	if err != nil {
 		panic(err)
 	}
