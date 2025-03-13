@@ -10,26 +10,26 @@ import (
 )
 
 type App struct {
-	Debug            bool     `yaml:"Debug"`
-	MqttUrl          string   `yaml:"MqttUrl"`
-	MqttCaCert       string   `yaml:"MqttCaCert"`
-	MqttClientCert   string   `yaml:"MqttClientCert"`
-	MqttClientKey    string   `yaml:"MqttClientKey"`
-	MqttEnableTlsKlf bool     `yaml:"MqttEnableTlsKlf"` // TODO rename to EnableTlsKlf
-	MqttTlsKlfPath   string   `yaml:"MqttTlsKlfPath"`   // TODO rename to TlsKlfPath
-	NatsUrl          string   `yaml:"NatsUrl"`
-	NodemanApiUrl    string   `yaml:"NodemanApiUrl"`
-	Bridges          []Bridge `yaml:"Bridges"`
+	Debug            bool     `toml:"Debug"`
+	MqttUrl          string   `toml:"MqttUrl"`
+	MqttCaCert       string   `toml:"MqttCaCert"`
+	MqttClientCert   string   `toml:"MqttClientCert"`
+	MqttClientKey    string   `toml:"MqttClientKey"`
+	MqttEnableTlsKlf bool     `toml:"MqttEnableTlsKlf"` // TODO rename to EnableTlsKlf
+	MqttTlsKlfPath   string   `toml:"MqttTlsKlfPath"`   // TODO rename to TlsKlfPath
+	NatsUrl          string   `toml:"NatsUrl"`
+	NodemanApiUrl    string   `toml:"NodemanApiUrl"`
+	Bridges          []Bridge `toml:"Bridges"`
 	Ctx              context.Context
 }
 
 type Bridge struct {
-	Direction   string `yaml:"Direction"`
-	MqttTopic   string `yaml:"MqttTopic"`
-	NatsSubject string `yaml:"NatsSubject"`
-	NatsQueue   string `yaml:"NatsQueue"`
-	Key         string `yaml:"Key"`
-	Schema      string `yaml:"Schema"`
+	Direction   string `toml:"Direction"`
+	MqttTopic   string `toml:"MqttTopic"`
+	NatsSubject string `toml:"NatsSubject"`
+	NatsQueue   string `toml:"NatsQueue"`
+	Key         string `toml:"Key"`
+	Schema      string `toml:"Schema"`
 }
 
 func (a App) Run() {
