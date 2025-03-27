@@ -7,3 +7,6 @@ bin/
 # Ignore default conf file
 config.yaml
 config.toml
+
+# Ignore random backed up files
+*.bak
