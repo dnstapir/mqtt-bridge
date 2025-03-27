@@ -273,7 +273,7 @@ func (tb *tapirBridge) loopDownbound() {
 
 		ok, err := tb.validateWithSchema(msg.Data)
 		if err != nil {
-			panic(err)
+            log.Error("Malformed data from NATS, discarding...")
 		}
 
 		if ok {
