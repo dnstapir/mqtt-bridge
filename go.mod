@@ -8,7 +8,7 @@ require (
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/nats-io/nats.go v1.42.0
 	github.com/pelletier/go-toml/v2 v2.2.4
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 )
 
 require (
