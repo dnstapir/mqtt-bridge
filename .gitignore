@@ -1,8 +1,9 @@
 # Don't commit cryptographic material
 certs/
 
-# Don't commit built binaries
+# Don't commit build artifacts
 bin/
+out/
 
 # Ignore default conf file
 config.yaml
