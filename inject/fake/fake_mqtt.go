@@ -1,17 +1,35 @@
 package fake
 
-import (
-    "errors"
-)
-
-type FakeMqttClient struct {
+type mqtt struct {
+    subCh chan []byte
+    pubCh chan []byte
 }
 
+func Mqtt() *mqtt {
+    mqtt := new(mqtt)
+    mqtt.subCh =  make(chan []byte, 1)
+    mqtt.pubCh = make(chan []byte)
 
-func (nc *FakeMqttClient) Subscribe(topic string) (<-chan []byte, error) {
-    return nil, errors.New("not implemented")
+    return mqtt
 }
 
-func (nc *FakeMqttClient) StartPublishing(topic string) (chan<- []byte, error) {
-    return nil, errors.New("not implemented")
+func (m *mqtt) Connect() error {
+    return nil
+}
+
+func (m *mqtt) Subscribe(topic string) (<-chan []byte, error) {
+    return m.subCh, nil
+}
+
+func (m *mqtt) Inject(data []byte) {
+    m.subCh <- data
+}
+
+func (m *mqtt) StartPublishing(subject string) (chan<- []byte, error) {
+    return m.pubCh, nil
+}
+
+func (m *mqtt) Eavesdrop() []byte {
+    data := <- m.pubCh
+    return data
 }

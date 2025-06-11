@@ -1,0 +1,191 @@
+package keys
+
+
+import (
+	"crypto/ed25519"
+    "encoding/json"
+    "errors"
+    "path/filepath"
+    "os"
+
+	"github.com/dnstapir/mqtt-bridge/shared"
+
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
+)
+
+type SignKey jwk.Key
+type ValKey  jwk.Key
+
+const cJWK_ISS_TAG = "iss"
+
+var log shared.ILogger
+
+func SetLogger(logger shared.ILogger) error {
+    if logger == nil {
+        return errors.New("nil logger")
+    }
+
+    if log != nil {
+        log.Info("Changing logger")
+    }
+
+    log = logger
+
+    return nil
+}
+
+func ParseValKey(keyData []byte) (ValKey, error) {
+    if log == nil {
+        return nil, errors.New("nil logger")
+    }
+
+    return nil, errors.New("not implemented")
+}
+
+func GetValKey(filename string) (ValKey, error) {
+    if log == nil {
+        return nil, errors.New("nil logger")
+    }
+
+	keyFile, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, errors.New("error reading validation key file")
+	}
+
+	keyParsed, err := jwk.ParseKey(keyFile)
+	if err != nil {
+		return nil, errors.New("error parsing validation key file")
+	}
+
+    return keyParsed, nil
+}
+
+func GetSignKey(filename string) (SignKey, error) {
+    if log == nil {
+        return nil, errors.New("nil logger")
+    }
+
+	keyFile, err := os.ReadFile(filename)
+	if err != nil {
+        log.Error("Could not read signing key file, err: '%s'", err)
+		return nil, err
+	}
+
+	keyParsed, err := jwk.ParseKey(keyFile)
+	if err != nil {
+        log.Error("Could not parse signing key file, err: '%s'", err)
+		return nil, err
+	}
+
+	isPrivate, err := jwk.IsPrivateKey(keyParsed)
+	if err != nil {
+        log.Error("Could not check if key is private, err: '%s'", err)
+		return nil, err
+	}
+
+	if !isPrivate {
+        log.Error("Signing key file '%s' is not private", filename)
+		return nil, errors.New("signing key must be private")
+	}
+
+    return keyParsed, nil
+}
+
+func Sign(data []byte, key SignKey) ([]byte, error) {
+    if log == nil {
+        return nil, errors.New("nil logger")
+    }
+
+	signedData, err := jws.Sign(data, jws.WithJSON(), jws.WithKey(key.Algorithm(), key))
+	if err != nil {
+		return nil, err
+	}
+
+    return signedData, nil
+}
+
+func GetKeyIDFromSignedData(sig []byte) (string, error) {
+    if log == nil {
+        return "", errors.New("nil logger")
+    }
+
+    return "", errors.New("not implemented")
+}
+
+func CheckSignature(sig []byte, key ValKey) ([]byte, error) {
+    if log == nil {
+        return nil, errors.New("nil logger")
+    }
+
+	data, err := jws.Verify(sig, jws.WithJSON(), jws.WithKey(key.Algorithm(), key))
+	if err != nil {
+		log.Error("Failed to verify signature on message. Discarding...")
+		return nil, err
+	}
+
+	log.Debug("Message signature was successfully validated! Used key '%s'", key.KeyID())
+
+    return data, nil
+}
+
+func GenerateValKey(filename string) (ValKey, error) {
+    return generateKey(filename, false)
+}
+
+func GenerateSignKey(filename string) (SignKey, error) {
+    return generateKey(filename, true)
+}
+
+func generateKey(filename string, isPrivate bool) (jwk.Key, error) {
+    if log == nil {
+        return nil, errors.New("nil logger")
+    }
+	_, dataKeyRaw, err := ed25519.GenerateKey(nil)
+	if err != nil {
+        return nil, err
+	}
+
+	dataKeyJWK, err := jwk.FromRaw(dataKeyRaw)
+	if err != nil {
+        return nil, err
+	}
+
+	err = dataKeyJWK.Set(jwk.KeyIDKey, "mqtt-bridge-testkey")
+	if err != nil {
+        return nil, err
+	}
+
+	err = dataKeyJWK.Set(jwk.AlgorithmKey, jwa.EdDSA)
+	if err != nil {
+        return nil, err
+	}
+
+	err = dataKeyJWK.Set(cJWK_ISS_TAG, "for testing purposes only")
+	if err != nil {
+        return nil, err
+	}
+
+    var dataKeyOut jwk.Key
+    if isPrivate {
+        dataKeyOut = dataKeyJWK
+    } else {
+        dataKeyOut, err = dataKeyJWK.PublicKey()
+	    if err != nil {
+            return nil, err
+	    }
+    }
+
+	dataKeyJSON, err := json.Marshal(dataKeyOut)
+	if err != nil {
+        return nil, err
+	}
+
+	err = os.WriteFile(filepath.Clean(filename), []byte(dataKeyJSON), 0666)
+	if err != nil {
+        return nil, err
+	}
+
+    return dataKeyOut, nil
+}
