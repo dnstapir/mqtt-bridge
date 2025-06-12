@@ -81,23 +81,3 @@ func (db *downbridge) Stop() {
     db.stopCh <- true
     close(db.stopCh)
 }
-
-func (db *downbridge) handleIncomingNats(data []byte) {
-
-
-	//if ok {
-	//	// Do the signing sauce
-	//	payload, err := jws.Sign(msg.Data, jws.WithJSON(), jws.WithKey(tb.dataKey.Algorithm(), tb.dataKey))
-	//	if err != nil {
-	//		panic(err)
-	//	}
-
-	//	err = tb.publish(tb.topic, payload)
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//} else {
-	//	log.Error("Malformed data '%s', discarding...", string(msg.Data))
-	//}
-
-}

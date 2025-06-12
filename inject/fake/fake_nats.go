@@ -24,7 +24,7 @@ func (n *nats) Inject(data []byte) {
     n.subCh <- data
 }
 
-func (n *nats) StartPublishing(subject string) (chan<- []byte, error) {
+func (n *nats) StartPublishing(subject string, queue string) (chan<- []byte, error) {
     return n.pubCh, nil
 }
 

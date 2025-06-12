@@ -43,6 +43,6 @@ func (c *natsclient) Subscribe(subject string, queue string) (<-chan []byte, err
     return nil, errors.New("not implemented")
 }
 
-func (c *natsclient) StartPublishing(subject string) (chan<- []byte, error) {
+func (c *natsclient) StartPublishing(subject string, queue string) (chan<- []byte, error) {
     return nil, errors.New("not implemented")
 }
