@@ -1,6 +1,5 @@
 package cache
 
-
 import (
 	"github.com/dnstapir/mqtt-bridge/app/keys"
 
@@ -17,29 +16,29 @@ type Conf struct {
 }
 
 func Create(conf Conf) (*LruCache, error) {
-    newCache := new(LruCache)
+	newCache := new(LruCache)
 
-    newLru, err := lru.New[string, keys.ValKey](cCACHE_SIZE)
-    if err != nil {
-        return nil, err
-    }
+	newLru, err := lru.New[string, keys.ValKey](cCACHE_SIZE)
+	if err != nil {
+		return nil, err
+	}
 
-    newCache.valKeyCache = newLru
+	newCache.valKeyCache = newLru
 
-    return newCache, nil
+	return newCache, nil
 }
 
 func (l *LruCache) GetValkeyFromCache(keyID string) keys.ValKey {
 	key, ok := l.valKeyCache.Get(keyID)
 
-    if !ok {
-        return nil
-    }
+	if !ok {
+		return nil
+	}
 
-    return key
+	return key
 }
 
 func (l *LruCache) StoreValkeyInCache(key keys.ValKey) error {
-    l.valKeyCache.Add(key.KeyID(), key)
-    return nil
+	l.valKeyCache.Add(key.KeyID(), key)
+	return nil
 }

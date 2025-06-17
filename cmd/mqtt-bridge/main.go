@@ -37,17 +37,17 @@ func main() {
 		panic(err)
 	}
 
-    envMqttUrl, overrideMqttUrl := os.LookupEnv(c_ENVVAR_OVERRIDE_MQTT_URL)
-    if overrideMqttUrl {
-        appConf.MqttUrl = envMqttUrl
-    }
+	envMqttUrl, overrideMqttUrl := os.LookupEnv(c_ENVVAR_OVERRIDE_MQTT_URL)
+	if overrideMqttUrl {
+		appConf.MqttUrl = envMqttUrl
+	}
 
-    envNatsUrl, overrideNatsUrl := os.LookupEnv(c_ENVVAR_OVERRIDE_NATS_URL)
-    if overrideNatsUrl {
-        appConf.NatsUrl = envNatsUrl
-    }
+	envNatsUrl, overrideNatsUrl := os.LookupEnv(c_ENVVAR_OVERRIDE_NATS_URL)
+	if overrideNatsUrl {
+		appConf.NatsUrl = envNatsUrl
+	}
 
-    application, err := setup.BuildApp(appConf)
+	application, err := setup.BuildApp(appConf)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error building application: '%s', exiting...\n", err)
 		os.Exit(-1)

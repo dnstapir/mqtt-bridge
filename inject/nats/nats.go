@@ -1,33 +1,33 @@
 package nats
 
 import (
-    "errors"
+	"errors"
 	"github.com/dnstapir/mqtt-bridge/shared"
 	"github.com/nats-io/nats.go"
 )
 
 type Conf struct {
-	Log      shared.LoggerIF
-	NatsUrl  string
+	Log     shared.LoggerIF
+	NatsUrl string
 }
 
 type natsclient struct {
-    url    string
-	conn   *nats.Conn
+	url  string
+	conn *nats.Conn
 }
 
 func Create(conf Conf) (*natsclient, error) {
-    newClient := new(natsclient)
+	newClient := new(natsclient)
 
-    newClient.url = conf.NatsUrl
+	newClient.url = conf.NatsUrl
 
-    return newClient, nil
+	return newClient, nil
 }
 
 func (c *natsclient) Connect() error {
-    if c.conn != nil {
-        return errors.New("already has connection")
-    }
+	if c.conn != nil {
+		return errors.New("already has connection")
+	}
 
 	natsConn, err := nats.Connect(c.url)
 
@@ -36,13 +36,13 @@ func (c *natsclient) Connect() error {
 	}
 	c.conn = natsConn
 
-    return nil
+	return nil
 }
 
 func (c *natsclient) Subscribe(subject string, queue string) (<-chan []byte, error) {
-    return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented")
 }
 
 func (c *natsclient) StartPublishing(subject string, queue string) (chan<- []byte, error) {
-    return nil, errors.New("not implemented")
+	return nil, errors.New("not implemented")
 }

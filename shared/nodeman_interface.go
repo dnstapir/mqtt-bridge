@@ -1,5 +1,5 @@
 package shared
 
 type NodemanIF interface {
-    GetKey(string) ([]byte, error)
+	GetKey(string) ([]byte, error)
 }

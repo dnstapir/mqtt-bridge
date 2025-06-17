@@ -1,35 +1,35 @@
 package fake
 
 type mqtt struct {
-    subCh chan []byte
-    pubCh chan []byte
+	subCh chan []byte
+	pubCh chan []byte
 }
 
 func Mqtt() *mqtt {
-    mqtt := new(mqtt)
-    mqtt.subCh =  make(chan []byte, 1)
-    mqtt.pubCh = make(chan []byte)
+	mqtt := new(mqtt)
+	mqtt.subCh = make(chan []byte, 1)
+	mqtt.pubCh = make(chan []byte)
 
-    return mqtt
+	return mqtt
 }
 
 func (m *mqtt) Connect() error {
-    return nil
+	return nil
 }
 
 func (m *mqtt) Subscribe(topic string) (<-chan []byte, error) {
-    return m.subCh, nil
+	return m.subCh, nil
 }
 
 func (m *mqtt) Inject(data []byte) {
-    m.subCh <- data
+	m.subCh <- data
 }
 
 func (m *mqtt) StartPublishing(subject string) (chan<- []byte, error) {
-    return m.pubCh, nil
+	return m.pubCh, nil
 }
 
 func (m *mqtt) Eavesdrop() []byte {
-    data := <- m.pubCh
-    return data
+	data := <-m.pubCh
+	return data
 }
