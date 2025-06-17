@@ -20,9 +20,9 @@ type ValKey  jwk.Key
 
 const cJWK_ISS_TAG = "iss"
 
-var log shared.ILogger
+var log shared.LoggerIF
 
-func SetLogger(logger shared.ILogger) error {
+func SetLogger(logger shared.LoggerIF) error {
     if logger == nil {
         return errors.New("nil logger")
     }
@@ -41,7 +41,12 @@ func ParseValKey(keyData []byte) (ValKey, error) {
         return nil, errors.New("nil logger")
     }
 
-    return nil, errors.New("not implemented")
+		newJwk, err := jwk.ParseKey(keyData)
+		if err != nil {
+            return nil, errors.New("error parsing bytes for key")
+		}
+
+    return newJwk, nil
 }
 
 func GetValKey(filename string) (ValKey, error) {
@@ -59,7 +64,12 @@ func GetValKey(filename string) (ValKey, error) {
 		return nil, errors.New("error parsing validation key file")
 	}
 
-    return keyParsed, nil
+    valKey, err := ToValkey(keyParsed)
+	if err != nil {
+		return nil, errors.New("error getting validation key from signing key")
+	}
+
+    return valKey, nil
 }
 
 func GetSignKey(filename string) (SignKey, error) {
@@ -150,6 +160,15 @@ func CheckSignature(sig []byte, key ValKey) ([]byte, error) {
     return data, nil
 }
 
+func ToValkey(signKey SignKey) (ValKey, error) {
+        valKey, err := signKey.PublicKey()
+	    if err != nil {
+            return nil, err
+	    }
+
+        return valKey, nil
+}
+
 func GenerateValKey(filename string) (ValKey, error) {
     return generateKey(filename, false)
 }
@@ -162,6 +181,7 @@ func generateKey(filename string, isPrivate bool) (jwk.Key, error) {
     if log == nil {
         return nil, errors.New("nil logger")
     }
+
 	_, dataKeyRaw, err := ed25519.GenerateKey(nil)
 	if err != nil {
         return nil, err

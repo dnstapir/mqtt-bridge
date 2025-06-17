@@ -7,7 +7,7 @@ import (
 )
 
 type Conf struct {
-	Log      shared.ILogger
+	Log      shared.LoggerIF
 	NatsUrl  string
 }
 

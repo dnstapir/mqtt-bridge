@@ -14,7 +14,7 @@ import (
 )
 
 type Conf struct {
-	Log            shared.ILogger
+	Log            shared.LoggerIF
 	MqttUrl        string
     MqttCaCert     string
     MqttClientCert string
@@ -22,7 +22,7 @@ type Conf struct {
 }
 
 type mqttclient struct {
-	log            shared.ILogger
+	log            shared.LoggerIF
     autopahoConf   autopaho.ClientConfig
 }
 

@@ -11,15 +11,17 @@ import (
 )
 
 type upbridge struct {
-    log       shared.ILogger
+    log       shared.LoggerIF
     stopCh    chan bool
     key       keys.ValKey
     schemaval *schemaval.Schemaval
     lru       *cache.LruCache
+    nodeman   shared.NodemanIF
 }
 
 type Conf struct {
-    Log      shared.ILogger
+    Log      shared.LoggerIF
+    Nodeman   shared.NodemanIF
     Schema   string
     Key      string
 }
@@ -31,6 +33,11 @@ func Create(conf Conf) (*upbridge, error) {
         return nil, errors.New("error setting logger")
     }
     newUpbridge.log = conf.Log
+
+    if conf.Nodeman == nil {
+        return nil, errors.New("error setting nodeman handle")
+    }
+    newUpbridge.nodeman = conf.Nodeman
 
     newUpbridge.stopCh = make(chan bool, 1)
 
@@ -49,7 +56,7 @@ func Create(conf Conf) (*upbridge, error) {
 
         err = newUpbridge.lru.StoreValkeyInCache(key)
         if err != nil {
-            return nil, errors.New("error getting signing key")
+            return nil, errors.New("error storing validation key")
         }
     }
 
@@ -81,8 +88,25 @@ func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
 
             key := ub.lru.GetValkeyFromCache(keyID)
             if key == nil {
-                ub.log.Error("key '%s not found in cache", keyID)
-                continue // TODO get it with nodeman instead
+                newKeyBytes, err := ub.nodeman.GetKey(keyID)
+                if err != nil {
+                    ub.log.Error("Error getting key '%s' from Nodeman, err: %s", keyID, err)
+                    continue
+                }
+
+                newKey, err := keys.ParseValKey(newKeyBytes)
+                if err != nil {
+                    ub.log.Error("Error parsing key '%s', err: %s", keyID, err)
+                    continue
+                }
+
+                err = ub.lru.StoreValkeyInCache(newKey)
+                if err != nil {
+                    ub.log.Error("Error caching key '%s', err: %s", keyID, err)
+                    continue
+                }
+
+                key = newKey
             }
 
             data, err := keys.CheckSignature(sig, key)

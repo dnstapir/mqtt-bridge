@@ -1,6 +1,6 @@
 package shared
 
-type ILogger interface {
+type LoggerIF interface {
 	Debug(fmtStr string, vals ...any)
 	Info(fmtStr string, vals ...any)
 	Warning(fmtStr string, vals ...any)

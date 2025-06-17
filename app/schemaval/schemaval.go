@@ -12,12 +12,12 @@ import (
 const cDEFAULT_SCHEMA = "{}"
 
 type Schemaval struct {
-    log    shared.ILogger
+    log    shared.LoggerIF
 	schema *jsonschema.Schema
 }
 
 type Conf struct {
-    Log    shared.ILogger
+    Log    shared.LoggerIF
     Filename string
 }
 

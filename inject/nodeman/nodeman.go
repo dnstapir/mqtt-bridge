@@ -10,7 +10,7 @@ import (
 )
 
 type Conf struct {
-	Log           shared.ILogger
+	Log           shared.LoggerIF
 	NodemanApiUrl string
 }
 
@@ -47,10 +47,6 @@ func Create(conf Conf) (*nodemanclient, error) {
     return newClient, nil
 }
 
-func (nc *nodemanclient) Subscribe(subject string) (<-chan []byte, error) {
-    return nil, errors.New("not implemented")
-}
-
-func (nc *nodemanclient) StartPublishing(subject string) (chan<- []byte, error) {
+func (n* nodemanclient) GetKey(keyID string) ([]byte, error) {
     return nil, errors.New("not implemented")
 }

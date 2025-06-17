@@ -1,6 +1,7 @@
 package app
 
 import (
+    "encoding/json"
     "path/filepath"
     "testing"
 	"github.com/dnstapir/mqtt-bridge/inject/fake"
@@ -135,7 +136,6 @@ func TestAppUpBasic(t *testing.T) {
 		t.Fatalf("Error signing data: %s", err)
 	}
 
-
     fakeMqtt.Inject(signedIn)
     out := fakeNats.Eavesdrop()
     if len(in) != len(out) {
@@ -150,14 +150,15 @@ func TestAppUpBasic(t *testing.T) {
 }
 
 func TestAppUpNoKeyInConfig(t *testing.T) {
-    fakeNats := fake.Nats()
-    fakeMqtt := fake.Mqtt()
+    fakeNats    := fake.Nats()
+    fakeMqtt    := fake.Mqtt()
+    fakeNodeman := fake.Nodeman()
 
 	application := App{
 		Log:     fake.Logger(),
 		Nats:    fakeNats,
 		Mqtt:    fakeMqtt,
-		Nodeman: fake.Nodeman(),
+		Nodeman: fakeNodeman,
         Bridges: make([]Bridge, 0),
 	}
 
@@ -189,11 +190,24 @@ func TestAppUpNoKeyInConfig(t *testing.T) {
 		t.Fatalf("Error generating key: %s", err)
     }
 
+    /* Get validation part and prepare fake nodeman with it */
+    valKey, err := keys.GetValKey(keyfile)
+    if err != nil {
+		t.Fatalf("Error getting validation key: %s", err)
+    }
+
+	valkeyBytes, err := json.Marshal(valKey)
+	if err != nil {
+		t.Fatalf("Error serializing validation key: %s", err)
+	}
+
+    fakeNodeman.PrepareKey(valkeyBytes)
+
 	application.Run()
 
     in := []byte("{\"foo\": \"bar\"}")
 
-    signkey, err := keys.GetSignKey(bridge.Key)
+    signkey, err := keys.GetSignKey(keyfile)
 	if err != nil {
 		t.Fatalf("Error getting signing key: %s", err)
 	}
@@ -202,7 +216,6 @@ func TestAppUpNoKeyInConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error signing data: %s", err)
 	}
-
 
     fakeMqtt.Inject(signedIn)
     out := fakeNats.Eavesdrop()

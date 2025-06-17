@@ -10,14 +10,14 @@ import (
 )
 
 type downbridge struct {
-    log       shared.ILogger
+    log       shared.LoggerIF
     stopCh    chan bool
     key       keys.SignKey
     schemaval *schemaval.Schemaval
 }
 
 type Conf struct {
-    Log      shared.ILogger
+    Log      shared.LoggerIF
     Schema   string
     Key      string
 }
