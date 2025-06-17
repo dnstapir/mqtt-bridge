@@ -111,7 +111,27 @@ func GetKeyIDFromSignedData(sig []byte) (string, error) {
         return "", errors.New("nil logger")
     }
 
-    return "", errors.New("not implemented")
+	jwsMsg, err := jws.Parse(sig, jws.WithJSON())
+	if err != nil {
+		log.Error("Malformed JWS message '%s'. Discarding...", string(sig))
+		return "", err
+	}
+
+	sigs := jwsMsg.Signatures()
+	if len(sigs) > 1 {
+		log.Warning("JWS message contains multiple signatures. Only one will be used")
+	} else if len(sigs) == 0 {
+		log.Error("JWS message contained no signatures. Discarding...")
+		return "", errors.New("message contained no signatures")
+	}
+
+	jwsKid := sigs[0].ProtectedHeaders().KeyID()
+	if jwsKid == "" {
+		log.Error("Incoming JWS had no \"kid\" set. Discarding...")
+		return "", errors.New("key id not found")
+	}
+
+    return jwsKid, nil
 }
 
 func CheckSignature(sig []byte, key ValKey) ([]byte, error) {

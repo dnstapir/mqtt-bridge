@@ -2,29 +2,44 @@ package cache
 
 
 import (
-    "errors"
-
-	"github.com/dnstapir/mqtt-bridge/shared"
-
 	"github.com/dnstapir/mqtt-bridge/app/keys"
+
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
-type cache struct {
-    log           shared.ILogger
+const cCACHE_SIZE = 1000
+
+type LruCache struct {
+	valKeyCache *lru.Cache[string, keys.ValKey]
 }
 
 type Conf struct {
-    Log           shared.ILogger
 }
 
-func Create(conf Conf) (*cache, error) {
-    return nil, errors.New("not implemented")
+func Create(conf Conf) (*LruCache, error) {
+    newCache := new(LruCache)
+
+    newLru, err := lru.New[string, keys.ValKey](cCACHE_SIZE)
+    if err != nil {
+        return nil, err
+    }
+
+    newCache.valKeyCache = newLru
+
+    return newCache, nil
 }
 
-func (c *cache) GetValkeyFromCache(keyID string) *keys.ValKey {
+func (l *LruCache) GetValkeyFromCache(keyID string) keys.ValKey {
+	key, ok := l.valKeyCache.Get(keyID)
+
+    if !ok {
+        return nil
+    }
+
+    return key
+}
+
+func (l *LruCache) StoreValkeyInCache(key keys.ValKey) error {
+    l.valKeyCache.Add(key.KeyID(), key)
     return nil
-}
-
-func (c *cache) StoreValkeyInCache(key keys.ValKey) error {
-    return errors.New("not implemented")
 }
