@@ -6,6 +6,11 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+const cHEADER_DNSTAPIR_MESSAGE_SCHEMA = "DNSTAPIR-Message-Schema"
+const cHEADER_DNSTAPIR_MQTT_TOPIC = "DNSTAPIR-Mqtt-Topic"
+const cHEADER_DNSTAPIR_KEY_IDENTIFIER = "DNSTAPIR-Key-Identifier"
+const cHEADER_DNSTAPIR_KEY_THUMBPRINT = "DNSTAPIR-Key-Thumbprint"
+
 type Conf struct {
 	Log     shared.LoggerIF
 	NatsUrl string
