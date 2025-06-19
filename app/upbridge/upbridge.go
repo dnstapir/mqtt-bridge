@@ -66,7 +66,7 @@ func Create(conf Conf) (*upbridge, error) {
 	}
 	schema, err := schemaval.Create(schemaConf)
 	if err != nil {
-		return nil, errors.New("error creating schema")
+		return nil, err
 	}
 	newUpbridge.schemaval = schema
 

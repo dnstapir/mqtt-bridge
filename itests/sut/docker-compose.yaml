@@ -1,0 +1,34 @@
+volumes:
+  nats:
+
+networks:
+  core:
+    driver: bridge
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0.21-openssl
+    restart: no
+    ports:
+     - "1883:1883/tcp"
+    volumes:
+      - ./mosquitto:/mosquitto/config:ro
+    networks:
+      - core
+  nats:
+    image: nats:2.11.4-linux
+    restart: no
+    command: "--config /etc/nats/nats.conf"
+    ports:
+      - "4222:4222/tcp"
+    volumes:
+      - ./nats:/etc/nats:ro
+    networks:
+      - core
+  mqtt-bridge:
+    image: mqtt-bridge-itest
+    restart: no
+    volumes:
+      - ./mqtt-bridge:/etc/dnstapir/mqtt-bridge:ro
+    networks:
+      - core

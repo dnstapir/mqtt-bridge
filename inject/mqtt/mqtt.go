@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+    "context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -24,6 +25,7 @@ type Conf struct {
 type mqttclient struct {
 	log          shared.LoggerIF
 	autopahoConf autopaho.ClientConfig
+    connMan      *autopaho.ConnectionManager
 }
 
 const cSCHEME_MQTTS = "mqtts"
@@ -86,15 +88,54 @@ func Create(conf Conf) (*mqttclient, error) {
 }
 
 func (c *mqttclient) Connect() error {
-	return errors.New("not implemented")
+    mqttConnM, err := autopaho.NewConnection(context.Background(), c.autopahoConf)
+	if err != nil {
+        return err
+	}
+
+	err = mqttConnM.AwaitConnection(context.Background())
+	if err != nil {
+        return err
+	}
+
+    c.connMan = mqttConnM
+
+	return nil
 }
 
 func (c *mqttclient) Subscribe(topic string) (<-chan []byte, error) {
-	return nil, errors.New("not implemented")
+	return nil, errors.New("mqtt.Subscribe not implemented")
 }
 
 func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
-	return nil, errors.New("not implemented")
+    dataChan := make(chan []byte)
+
+    go func(){
+	    for data := range dataChan {
+            c.log.Debug("Received data %s", string(data))
+
+	        mqttMsg := paho.Publish{
+	        	QoS:     0, // TODO make configurable?
+	        	Topic:   topic,
+	        	Payload: data,
+	        	Retain:  false,
+	        }
+
+	        c.log.Debug("Attempting to publish on topic '%s'", topic)
+            if c.connMan == nil {
+                panic("iiiiiiiiiII")
+            }
+	        _, err := c.connMan.Publish(context.Background(), &mqttMsg)
+
+	        if err != nil {
+                c.log.Error("Failed to publish message on topic '%s'", topic)
+	        }
+
+        }
+        c.log.Warning("Publishing channel closed for topic '%s'", topic)
+    }()
+
+	return dataChan, nil
 }
 
 func (c *mqttclient) onClientError(err error) {

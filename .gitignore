@@ -11,3 +11,20 @@ config.toml
 
 # Ignore random backed up files
 *.bak
+
+# Ignore integration test folders, except a select few files
+itests/sut/*
+!itests/sut/**
+!itests/sut/docker-compose.yaml
+
+itests/sut/mosquitto/*
+!itests/sut/mosquitto/mosquitto.conf
+
+itests/sut/mqtt-bridge/*
+!itests/sut/mqtt-bridge/config.toml
+!itests/sut/mqtt-bridge/new_qname.json
+!itests/sut/mqtt-bridge/edge-observations.json
+!itests/sut/mqtt-bridge/README.md
+
+itests/sut/nats/*
+!itests/sut/nats/nats.conf

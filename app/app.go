@@ -84,6 +84,13 @@ func (a *App) Run() <-chan error {
 			return
 		}
 
+		err = a.Mqtt.Connect()
+		if err != nil {
+			a.doneChan <- err
+			return
+		}
+
+
 		a.startBridges()
 		a.Log.Info("Entering main loop")
 		for {

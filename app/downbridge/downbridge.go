@@ -44,7 +44,7 @@ func Create(conf Conf) (*downbridge, error) {
 	}
 	schema, err := schemaval.Create(schemaConf)
 	if err != nil {
-		return nil, errors.New("error creating schema")
+		return nil, err
 	}
 	newDownbridge.schemaval = schema
 

@@ -1,0 +1,23 @@
+Debug = true
+MqttUrl = "mqtt://mosquitto:1883"
+MqttCaCert = ""
+MqttClientCert = ""
+MqttClientKey = ""
+NatsUrl = "nats://nats:4222"
+NodemanApiUrl = "https://localhost/api/v1"
+
+#[[Bridges]]
+#Direction = "up"
+#MqttTopic = "events/up/my-id"
+#NatsSubject = "events.up.some_event"
+#NatsQueue = "eventQ"
+#Key = ""
+#Schema = "/etc/dnstapir/mqtt-bridge/new_qname.json"
+
+[[Bridges]]
+Direction = "down"
+MqttTopic = "observations/down/tapir-pop"
+NatsSubject = "observations.down.tapir-pop"
+NatsQueue = "observationsQ"
+Key = "/etc/dnstapir/mqtt-bridge/signkey.json"
+Schema = "/etc/dnstapir/mqtt-bridge/edge_observations.json"
