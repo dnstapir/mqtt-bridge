@@ -48,3 +48,5 @@ container: build
 
 itest: container
 	docker compose -f itests/sut/docker-compose.yaml -p mqtt-bridge-itest up -d
+	go test ./itests
+	docker compose -f itests/sut/docker-compose.yaml -p mqtt-bridge-itest stop

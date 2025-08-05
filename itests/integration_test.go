@@ -7,10 +7,32 @@ import (
 
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
+	"github.com/nats-io/nats.go"
 )
 
 // TODO Maybe mutex protext or something...
 var responseBuffer [][]byte
+
+const msgTmpl string = `
+{
+    "src_name": "dns-tapir",
+    "creator": "",
+    "msg_type": "observation",
+    "list_type": "doubtlist",
+    "added": [
+        {
+            "name": "leon.xa",
+            "time_added": "2025-08-05T00:06:21,347168698+02:00",
+            "ttl": 3600,
+            "tag_mask": 666,
+            "extended_tags": []
+        }
+    ],
+    "removed": [],
+    "msg": "",
+    "timestamp": "2025-08-05T00:06:21,347168698+02:00",
+    "time_str": ""
+}`
 
 func mqttClientWaitResponse() {
     for {
@@ -66,16 +88,24 @@ func mqttClientStart() {
 	}
 }
 
+func natsClientSend(msg string) {
+    nc, _ := nats.Connect("nats://localhost:4222")
+
+	defer nc.Drain()
+
+	nc.Publish("observations.down.tapir-pop", []byte(msg))
+}
+
 func TestIntegrationUpBasic(t *testing.T) {
     responseBuffer = make([][]byte, 0)
 
     mqttClientStart()
 
-    //natsClientSend("{\"lala\": 1}")
+    natsClientSend(msgTmpl)
 
     mqttClientWaitResponse()
 
-    wanted := []byte("lala")
+    wanted := []byte("lolo")
     if true {
 		t.Fatalf("Bad response, wanted '%s', got '%s'", wanted, responseBuffer[0])
     }
