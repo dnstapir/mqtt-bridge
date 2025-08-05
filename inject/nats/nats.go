@@ -68,5 +68,19 @@ func (c *natsclient) Subscribe(subject string, queue string) (<-chan []byte, err
 }
 
 func (c *natsclient) StartPublishing(subject string, queue string) (chan<- []byte, error) {
-	return nil, errors.New("nats.StartPublishing not implemented")
+    dataChan := make(chan []byte)
+
+    go func(){
+	    for data := range dataChan {
+            msg := nats.NewMsg(subject)
+            msg.Data = data
+            // TODO NATS headers
+            err := c.conn.PublishMsg(msg)
+            if err != nil {
+                c.log.Error("Failed to publish NATS message on subject '%s'", subject)
+            }
+        }
+    }()
+
+    return dataChan, nil
 }

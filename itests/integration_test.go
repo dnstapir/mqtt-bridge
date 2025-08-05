@@ -1,17 +1,16 @@
 package itests
 
 import (
-	"context"
 	"testing"
-    "net/url"
 
-	"github.com/eclipse/paho.golang/autopaho"
-	"github.com/eclipse/paho.golang/paho"
-	"github.com/nats-io/nats.go"
+	"github.com/dnstapir/mqtt-bridge/inject/mqtt"
+	"github.com/dnstapir/mqtt-bridge/inject/nats"
+	"github.com/dnstapir/mqtt-bridge/inject/fake"
+	"github.com/dnstapir/mqtt-bridge/shared"
 )
 
-// TODO Maybe mutex protext or something...
-var responseBuffer [][]byte
+var mqttClient shared.MqttIF
+var natsClient shared.NatsIF
 
 const msgTmpl string = `
 {
@@ -34,79 +33,88 @@ const msgTmpl string = `
     "time_str": ""
 }`
 
-func mqttClientWaitResponse() {
-    for {
-        if len(responseBuffer) != 0 {
-            break
+// TODO preparation
+// 1. Create temporary folder for test (TMPDIR)
+// 2. Copy contents of mosquitto+nats+mqtt-bridge folders to TMPDIR
+// 3. Generate key and put in TMPDIR/mqtt-bridge
+// 4. Start nats and mosquitto containers, mount respective dirs from TMPDIR
+// 5. Start generic container for running binary, mount dir from TMPDIR
+// 7. Place test binary from OUT in container (e.g. in /usr/bin)
+// 8. RUN TESTS, use key from TMPDIR/mqtt-bridge to validate
+func setup() {
+    var err error
+	mqttConf := mqtt.Conf{
+		Log:            fake.Logger(),
+        MqttUrl:        "mqtt://localhost:1883",
+	}
+	mqttClient, err = mqtt.Create(mqttConf)
+	if err != nil {
+        panic(err)
+	}
+
+    err = mqttClient.Connect()
+	if err != nil {
+        panic(err)
+	}
+
+	natsConf := nats.Conf{
+		Log:     fake.Logger(),
+        NatsUrl: "nats://localhost:4222",
+	}
+	natsClient, err = nats.Create(natsConf)
+	if err != nil {
+        panic(err)
+	}
+
+    err = natsClient.Connect()
+	if err != nil {
+        panic(err)
+	}
+}
+
+func teardown() {
+    mqttClient = nil // TODO call Stop() on client or something?
+    natsClient = nil // TODO call Stop() on client or something?
+}
+
+func compareBytes(a, b []byte) bool {
+    if a == nil && b == nil {
+        return true
+    }
+
+    if len(a) != len(b) {
+        return false
+    }
+
+    for i := range a {
+        if a[i] != b[i] {
+            return false
         }
     }
 
-    return
+    return true
 }
 
-func mqttClientStart() {
-    u, err := url.Parse("mqtt://localhost:1883")
-	if err != nil {
-		panic(err)
-	}
+func TestIntegrationDownBasic(t *testing.T) {
+    setup()
+    defer teardown()
 
+    inCh, err := natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
+    if err != nil {
+        panic(err)
+    }
 
-	cliCfg := autopaho.ClientConfig{
-		ServerUrls: []*url.URL{u},
-		KeepAlive:  20,
-		CleanStartOnInitialConnection: false,
-		SessionExpiryInterval: 60,
-		OnConnectionUp: func(cm *autopaho.ConnectionManager, connAck *paho.Connack) {
-			if _, err := cm.Subscribe(context.Background(), &paho.Subscribe{
-				Subscriptions: []paho.SubscribeOptions{
-					{Topic: "observations/down/tapir-pop", QoS: 0},
-				},
-			}); err != nil {
-                panic(err)
-			}
-		},
-		OnConnectError: func(err error) { panic(err) },
-		ClientConfig: paho.ClientConfig{
-			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
-				func(pr paho.PublishReceived) (bool, error) {
-                    responseBuffer = append(responseBuffer, pr.Packet.Payload)
-					return true, nil
-				}},
-			OnClientError: func(err error) { panic(err) },
-			OnServerDisconnect: func(d *paho.Disconnect) {
-                panic("disconnect")
-			},
-		},
-	}
+    outCh, err := mqttClient.Subscribe("observations/down/tapir-pop")
+    if err != nil {
+        panic(err)
+    }
 
-	c, err := autopaho.NewConnection(context.Background(), cliCfg)
-	if err != nil {
-		panic(err)
-	}
-	if err = c.AwaitConnection(context.Background()); err != nil {
-		panic(err)
-	}
-}
+    inCh <- []byte(msgTmpl)
 
-func natsClientSend(msg string) {
-    nc, _ := nats.Connect("nats://localhost:4222")
+    wanted := []byte{0x65}
+    got := <-outCh
 
-	defer nc.Drain()
-
-	nc.Publish("observations.down.tapir-pop", []byte(msg))
-}
-
-func TestIntegrationUpBasic(t *testing.T) {
-    responseBuffer = make([][]byte, 0)
-
-    mqttClientStart()
-
-    natsClientSend(msgTmpl)
-
-    mqttClientWaitResponse()
-
-    wanted := []byte("lolo")
-    if true {
-		t.Fatalf("Bad response, wanted '%s', got '%s'", wanted, responseBuffer[0])
+    if !compareBytes(got, wanted) {
+        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
     }
 }

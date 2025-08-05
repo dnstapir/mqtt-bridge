@@ -38,15 +38,6 @@ clean:
 tarball: outdir
 	git archive --format=tar.gz --prefix=$(NAME)-$(VERSION)/ -o $(OUT)/$(NAME)-$(VERSION).tar.gz HEAD
 
-container: build
-	-rm -rf $(DOCKER_BUILDDIR)
-	mkdir -p $(DOCKER_BUILDDIR)
-	cp docker/Dockerfile $(DOCKER_BUILDDIR)
-	cp docker/entrypoint.sh $(DOCKER_BUILDDIR)
-	cp $(OUT)/$(NAME) $(DOCKER_BUILDDIR)
-	cd $(DOCKER_BUILDDIR) && docker build . -t $(DOCKER_ITEST_IMAGE)
-
-itest: container
-	docker compose -f itests/sut/docker-compose.yaml -p mqtt-bridge-itest up -d
+itest: build
 	go test ./itests
-	docker compose -f itests/sut/docker-compose.yaml -p mqtt-bridge-itest stop
+	#docker compose -f itests/sut/docker-compose.yaml -p mqtt-bridge-itest stop
