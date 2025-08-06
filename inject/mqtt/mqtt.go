@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+    "io"
 	"net/url"
 	"os"
 	"sync"
@@ -183,9 +184,11 @@ func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
 }
 
 func (c *mqttclient) onClientError(err error) {
-    // TODO seems to get called during integration test. Why?
-	//c.log.Error("client error: %s", err)
-    //panic(err)
+    if errors.Is(err, io.EOF) {
+	    c.log.Warning("onClientError called because of EOF")
+    } else {
+        panic(err)
+    }
 }
 
 func (c *mqttclient) onServerDisconnect(d *paho.Disconnect) {

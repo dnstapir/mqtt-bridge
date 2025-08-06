@@ -50,11 +50,10 @@ const msgTmpl string = `
 }`
 
 const c_DIR_BASE = "sut/"
-const c_DIR_MOSQUITTO = "mosquitto/"
-const c_DIR_NATS = "nats/"
 const c_DIR_MQTT_BRIDGE = "mqtt-bridge/"
-const c_DIR_OUT = "../out"
+const c_FILE_COMPOSE = "docker-compose.yaml"
 const c_FILE_TESTKEY = "testkey.json"
+const c_DIR_OUT = "../out/"
 const c_IMAGE_TESTDOCKER_REPO = "mqtt-bridge"
 const c_IMAGE_TESTDOCKER_TAG = "itest"
 
@@ -99,24 +98,22 @@ func (t *iTest) setupClients() {
 func (t *iTest) setupWorkdir() {
     t.workdir = t.TempDir()
 
-    for _, dir := range []string{c_DIR_NATS, c_DIR_MOSQUITTO, c_DIR_MQTT_BRIDGE} {
-        targetDir := filepath.Join(t.workdir, dir)
+    targetDir := filepath.Join(t.workdir, c_DIR_BASE)
 
-        execDir, err := os.Getwd()
-	    if err != nil {
-            panic(err)
-	    }
-        sourceDir := filepath.Join(execDir, c_DIR_BASE, dir)
+    execDir, err := os.Getwd()
+	if err != nil {
+        panic(err)
+	}
+    sourceDir := filepath.Join(execDir, c_DIR_BASE)
 
-        err = os.CopyFS(targetDir, os.DirFS(sourceDir))
-	    if err != nil {
-            panic(err)
-	    }
-    }
+    err = os.CopyFS(targetDir, os.DirFS(sourceDir))
+	if err != nil {
+        panic(err)
+	}
 }
 
 func (t *iTest) setupKeys() {
-    key, err := keys.GenerateSignKey(filepath.Join(t.workdir, c_DIR_MQTT_BRIDGE, c_FILE_TESTKEY))
+    key, err := keys.GenerateSignKey(filepath.Join(t.workdir, c_DIR_BASE, c_DIR_MQTT_BRIDGE, c_FILE_TESTKEY))
 	if err != nil {
         panic(err)
     }
@@ -144,7 +141,7 @@ func (t *iTest) setupContainers() {
         panic(err)
     }
 
-    stack, err := compose.NewDockerCompose("sut/docker-compose.yaml")
+    stack, err := compose.NewDockerCompose(filepath.Join(t.workdir, c_DIR_BASE, c_FILE_COMPOSE))
     if err != nil {
         panic(err)
     }
