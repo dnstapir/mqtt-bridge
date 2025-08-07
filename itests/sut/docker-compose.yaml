@@ -6,6 +6,18 @@ networks:
     driver: bridge
 
 services:
+  mqtt-bridge:
+    image: mqtt-bridge:itest
+    restart: no
+    depends_on:
+      mosquitto:
+        condition: service_started
+      nats:
+        condition: service_started
+    volumes:
+      - ./mqtt-bridge:/etc/dnstapir/mqtt-bridge:ro
+    networks:
+      - core
   mosquitto:
     image: eclipse-mosquitto:2.0.21-openssl
     restart: no
@@ -23,12 +35,5 @@ services:
       - "4222:4222/tcp"
     volumes:
       - ./nats:/etc/nats:ro
-    networks:
-      - core
-  mqtt-bridge:
-    image: mqtt-bridge-itest
-    restart: no
-    volumes:
-      - ./mqtt-bridge:/etc/dnstapir/mqtt-bridge:ro
     networks:
       - core

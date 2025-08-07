@@ -1,6 +1,7 @@
 package itests
 
 import (
+    "context"
     "os"
     "path/filepath"
 	"testing"
@@ -10,6 +11,9 @@ import (
 	"github.com/dnstapir/mqtt-bridge/inject/nats"
 	"github.com/dnstapir/mqtt-bridge/inject/fake"
 	"github.com/dnstapir/mqtt-bridge/shared"
+
+    "github.com/testcontainers/testcontainers-go"
+    "github.com/testcontainers/testcontainers-go/modules/compose"
 )
 
 
@@ -21,6 +25,7 @@ type iTest struct {
     natsTargetDir string
     valkey keys.ValKey
     signkey keys.SignKey
+    stack *compose.DockerCompose
 }
 
 const msgTmpl string = `
@@ -48,21 +53,17 @@ const c_DIR_BASE = "sut/"
 const c_DIR_MOSQUITTO = "mosquitto/"
 const c_DIR_NATS = "nats/"
 const c_DIR_MQTT_BRIDGE = "mqtt-bridge/"
+const c_DIR_OUT = "../out"
 const c_FILE_TESTKEY = "testkey.json"
+const c_IMAGE_TESTDOCKER_REPO = "mqtt-bridge"
+const c_IMAGE_TESTDOCKER_TAG = "itest"
 
-// TODO preparation
-//// 1. Create temporary folder for test (TMPDIR)
-//// 2. Copy contents of mosquitto+nats+mqtt-bridge folders to TMPDIR
-//// 3. Generate key and put in TMPDIR/mqtt-bridge
-// 4. Start nats and mosquitto containers, mount respective dirs from TMPDIR
-// 5. Start generic container for running binary, mount dir from TMPDIR
-// 7. Place test binary from OUT in container (e.g. in /usr/bin)
-// 8. RUN TESTS, use key from TMPDIR/mqtt-bridge to validate
 func (t *iTest) setup() {
     keys.SetLogger(fake.Logger())
-    t.setupClients()
     t.setupWorkdir()
     t.setupKeys()
+    t.setupContainers()
+    t.setupClients()
 }
 
 func (t *iTest) setupClients() {
@@ -125,11 +126,49 @@ func (t *iTest) setupKeys() {
 }
 
 func (t *iTest) setupContainers() {
+    ctx := context.Background()
+
+    req := testcontainers.ContainerRequest{
+        FromDockerfile: testcontainers.FromDockerfile{
+            Context:    filepath.Join(".", c_DIR_OUT),
+            Repo:       c_IMAGE_TESTDOCKER_REPO,
+            Tag:        c_IMAGE_TESTDOCKER_TAG,
+        },
+    }
+    prov, err := testcontainers.NewDockerProvider()
+    if err != nil {
+        panic(err)
+    }
+    _, err = prov.BuildImage(ctx, &req)
+    if err != nil {
+        panic(err)
+    }
+
+    stack, err := compose.NewDockerCompose("sut/docker-compose.yaml")
+    if err != nil {
+        panic(err)
+    }
+
+    err = stack.Up(ctx, compose.Wait(true))
+    if err != nil {
+        panic(err)
+    }
+
+    t.stack = stack
 }
 
 func (t *iTest) teardown() {
     t.mqttClient = nil // TODO call Stop() on client or something?
     t.natsClient = nil // TODO call Stop() on client or something?
+    err := t.stack.Down(
+        context.Background(),
+        compose.RemoveOrphans(true),
+        compose.RemoveVolumes(true),
+        compose.RemoveImagesLocal,
+    )
+    if err != nil {
+        panic(err)
+    }
 }
 
 func compareBytes(a, b []byte) bool {
@@ -156,17 +195,17 @@ func TestIntegrationDownBasic(t *testing.T) {
     it.setup()
     defer it.teardown()
 
-//    inCh, err := natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
-//    if err != nil {
-//        panic(err)
-//    }
-//
+    inCh, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
+    if err != nil {
+        panic(err)
+    }
+
     outCh, err := it.mqttClient.Subscribe("observations/down/tapir-pop")
     if err != nil {
         panic(err)
     }
 
-    //inCh <- []byte(msgTmpl)
+    inCh <- []byte(msgTmpl)
 
     wanted := []byte{0x65}
     got := <-outCh
