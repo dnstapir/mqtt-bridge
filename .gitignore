@@ -23,7 +23,7 @@ itests/sut/mosquitto/*
 itests/sut/mqtt-bridge/*
 !itests/sut/mqtt-bridge/config.toml
 !itests/sut/mqtt-bridge/new_qname.json
-!itests/sut/mqtt-bridge/edge-observations.json
+!itests/sut/mqtt-bridge/edge_observations.json
 !itests/sut/mqtt-bridge/README.md
 
 itests/sut/nats/*

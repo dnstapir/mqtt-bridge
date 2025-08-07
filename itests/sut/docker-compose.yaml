@@ -29,8 +29,8 @@ services:
       - core
     healthcheck:
       test: ["CMD-SHELL", "timeout 1 mosquitto_sub -i mosquitto-healthcheck -t mosquitto-healthcheck -E -W 3"]
-      interval: 10s
-      timeout: 10s
+      interval: 3s
+      timeout: 3s
       retries: 3
   nats:
     image: nats:alpine3.22
@@ -44,6 +44,6 @@ services:
       - core
     healthcheck:
       test: ["CMD-SHELL", "busybox wget http://127.0.0.1:8222/healthz -O - | grep \"ok\""]
-      interval: 10s
-      timeout: 10s
+      interval: 3s
+      timeout: 3s
       retries: 3
