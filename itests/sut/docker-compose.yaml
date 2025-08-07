@@ -13,7 +13,7 @@ services:
       mosquitto:
         condition: service_healthy
       nats:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./mqtt-bridge:/etc/dnstapir/mqtt-bridge:ro
     networks:
