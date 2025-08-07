@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+    "time"
 
 	"github.com/dnstapir/mqtt-bridge/shared"
 )
@@ -44,6 +45,7 @@ func Create(conf Conf) (*nodemanclient, error) {
 
 	client := http.Client{
 		Transport: tr,
+        Timeout:   30 * time.Second,
 	}
 
 	newNodeman.client = client
