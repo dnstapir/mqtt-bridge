@@ -1,8 +1,6 @@
 module github.com/dnstapir/mqtt-bridge
 
-go 1.23.8
-
-toolchain go1.23.12
+go 1.24.6
 
 require (
 	github.com/eclipse/paho.golang v0.22.0
