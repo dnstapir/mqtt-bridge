@@ -3,6 +3,7 @@
 package itests
 
 import (
+    "bytes"
     "context"
     "os"
     "path/filepath"
@@ -174,24 +175,6 @@ func (t *iTest) teardown() {
     }
 }
 
-func compareBytes(a, b []byte) bool {
-    if a == nil && b == nil {
-        return true
-    }
-
-    if len(a) != len(b) {
-        return false
-    }
-
-    for i := range a {
-        if a[i] != b[i] {
-            return false
-        }
-    }
-
-    return true
-}
-
 func copyFile(src, dst string) {
     data, err := os.ReadFile(src)
 	if err != nil {
@@ -230,7 +213,7 @@ func TestIntegrationDownBasic(t *testing.T) {
         panic(err)
     }
 
-    if !compareBytes(data, wanted) {
+    if !bytes.Equal(data, wanted) {
         t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(data))
     }
 }
@@ -262,7 +245,7 @@ func TestIntegrationUpBasicWithoutSchema(t *testing.T) {
     got := <-outCh
 
     wanted := indata
-    if !compareBytes(wanted, got) {
+    if !bytes.Equal(wanted, got) {
         t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
     }
 }
