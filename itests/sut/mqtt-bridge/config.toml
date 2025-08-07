@@ -14,10 +14,10 @@ NatsQueue = "eventQ"
 Key = "/etc/dnstapir/mqtt-bridge/testkey.json"
 Schema = ""
 
-#[[Bridges]]
-#Direction = "down"
-#MqttTopic = "observations/down/tapir-pop"
-#NatsSubject = "observations.down.tapir-pop"
-#NatsQueue = "observationsQ"
-#Key = "/etc/dnstapir/mqtt-bridge/testkey.json"
-#Schema = "/etc/dnstapir/mqtt-bridge/edge_observations.json"
+[[Bridges]]
+Direction = "down"
+MqttTopic = "observations/down/tapir-pop"
+NatsSubject = "observations.down.tapir-pop"
+NatsQueue = "observationsQ"
+Key = "/etc/dnstapir/mqtt-bridge/testkey.json"
+Schema = "/etc/dnstapir/mqtt-bridge/edge_observations.json"

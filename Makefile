@@ -39,5 +39,4 @@ tarball: outdir
 	git archive --format=tar.gz --prefix=$(NAME)-$(VERSION)/ -o $(OUT)/$(NAME)-$(VERSION).tar.gz HEAD
 
 itest: build
-	go test ./itests
-	#docker compose -f itests/sut/docker-compose.yaml -p mqtt-bridge-itest stop
+	go test --tags=itests ./itests

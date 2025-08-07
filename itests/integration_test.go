@@ -1,3 +1,5 @@
+// +build itests
+
 package itests
 
 import (
@@ -201,38 +203,38 @@ func copyFile(src, dst string) {
 	}
 }
 
-//func TestIntegrationDownBasic(t *testing.T) {
-//    it := new(iTest)
-//    it.T = t /* upgrade to our custom test class */
-//    it.setup()
-//    defer it.teardown()
-//
-//    inCh, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
-//    if err != nil {
-//        panic(err)
-//    }
-//
-//    outCh, err := it.mqttClient.Subscribe("observations/down/tapir-pop")
-//    if err != nil {
-//        panic(err)
-//    }
-//
-//    inCh <- []byte(msgTmpl)
-//
-//    wanted := []byte(msgTmpl)
-//    got := <-outCh
-//
-//    data, err := keys.CheckSignature(got, it.valkey)
-//    if err != nil {
-//        panic(err)
-//    }
-//
-//    if !compareBytes(data, wanted) {
-//        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(data))
-//    }
-//}
+func TestIntegrationDownBasic(t *testing.T) {
+    it := new(iTest)
+    it.T = t /* upgrade to our custom test class */
+    it.setup()
+    defer it.teardown()
 
-func TestIntegrationUpBasic(t *testing.T) {
+    inCh, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
+    if err != nil {
+        panic(err)
+    }
+
+    outCh, err := it.mqttClient.Subscribe("observations/down/tapir-pop")
+    if err != nil {
+        panic(err)
+    }
+
+    inCh <- []byte(msgTmpl)
+
+    wanted := []byte(msgTmpl)
+    got := <-outCh
+
+    data, err := keys.CheckSignature(got, it.valkey)
+    if err != nil {
+        panic(err)
+    }
+
+    if !compareBytes(data, wanted) {
+        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(data))
+    }
+}
+
+func TestIntegrationUpBasicWithoutSchema(t *testing.T) {
     it := new(iTest)
     it.T = t /* upgrade to our custom test class */
     it.setup()
