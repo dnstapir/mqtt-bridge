@@ -39,7 +39,7 @@ const msgTmpl string = `
     "added": [
         {
             "name": "leon.xa",
-            "time_added": "2025-08-05T00:06:21,347168698+02:00",
+            "time_added": "2025-08-05T00:06:21.347168698+02:00",
             "ttl": 3600,
             "tag_mask": 666,
             "extended_tags": []
@@ -47,7 +47,7 @@ const msgTmpl string = `
     ],
     "removed": [],
     "msg": "",
-    "timestamp": "2025-08-05T00:06:21,347168698+02:00",
+    "timestamp": "2025-08-05T00:06:21.347168698+02:00",
     "time_str": ""
 }`
 
