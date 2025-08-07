@@ -11,7 +11,7 @@ services:
     restart: no
     depends_on:
       mosquitto:
-        condition: service_started
+        condition: service_healthy
       nats:
         condition: service_started
     volumes:
@@ -27,6 +27,11 @@ services:
       - ./mosquitto:/mosquitto/config:ro
     networks:
       - core
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 mosquitto_sub -i mosquitto-healthcheck -t mosquitto-healthcheck -E -W 3"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
   nats:
     image: nats:2.11.4-linux
     restart: no
@@ -37,3 +42,8 @@ services:
       - ./nats:/etc/nats:ro
     networks:
       - core
+    #healthcheck:
+    #  test: ["CMD", "curl http://localhost:8222/healthz | jq .status | grep \"ok\""]
+    #  interval: 10s
+    #  timeout: 10s
+    #  retries: 3
