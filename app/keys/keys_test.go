@@ -21,7 +21,7 @@ func TestGenerateSignKey(t *testing.T) {
 
 	workdir := t.TempDir()
 	keyfile := filepath.Join(workdir, "testkey.json")
-	keyGenerated, err := GenerateSignKey(keyfile)
+	keyGenerated, err := GenerateSignKey(keyfile, "tmp-key-utest-keys")
 	if err != nil {
 		panic(err)
 	}

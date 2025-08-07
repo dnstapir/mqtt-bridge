@@ -168,15 +168,15 @@ func ToValkey(signKey SignKey) (ValKey, error) {
 	return valKey, nil
 }
 
-func GenerateValKey(filename string) (ValKey, error) {
-	return generateKey(filename, false)
+func GenerateValKey(filename, kid string) (ValKey, error) {
+	return generateKey(filename, kid, false)
 }
 
-func GenerateSignKey(filename string) (SignKey, error) {
-	return generateKey(filename, true)
+func GenerateSignKey(filename, kid string) (SignKey, error) {
+	return generateKey(filename, kid, true)
 }
 
-func generateKey(filename string, isPrivate bool) (jwk.Key, error) {
+func generateKey(filename, kid string, isPrivate bool) (jwk.Key, error) {
 	if log == nil {
 		return nil, errors.New("nil logger")
 	}
@@ -191,7 +191,7 @@ func generateKey(filename string, isPrivate bool) (jwk.Key, error) {
 		return nil, err
 	}
 
-	err = dataKeyJWK.Set(jwk.KeyIDKey, "mqtt-bridge-testkey")
+	err = dataKeyJWK.Set(jwk.KeyIDKey, kid)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func generateKey(filename string, isPrivate bool) (jwk.Key, error) {
 		return nil, err
 	}
 
-	err = os.WriteFile(filepath.Clean(filename), []byte(dataKeyJSON), 0666)
+	err = os.WriteFile(filepath.Clean(filename), []byte(dataKeyJSON), 0640)
 	if err != nil {
 		return nil, err
 	}

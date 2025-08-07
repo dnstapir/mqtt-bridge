@@ -44,7 +44,7 @@ func TestAppDownBasic(t *testing.T) {
 	 * Generate the key now that the app is initialized (to ensure logger
 	 * object for "keys" package has been set, else package won't work)
 	 */
-	_, err = keys.GenerateSignKey(keyfile)
+	_, err = keys.GenerateSignKey(keyfile, "tmp-key-utest-app")
 	if err != nil {
 		t.Fatalf("Error generating key: %s", err)
 	}
@@ -117,7 +117,7 @@ func TestAppUpBasic(t *testing.T) {
 	 * Generate the key now that the app is initialized (to ensure logger
 	 * object for "keys" package has been set, else package won't work)
 	 */
-	_, err = keys.GenerateSignKey(keyfile)
+	_, err = keys.GenerateSignKey(keyfile, "tmp-key-utest-app")
 	if err != nil {
 		t.Fatalf("Error generating key: %s", err)
 	}
@@ -185,7 +185,7 @@ func TestAppUpNoKeyInConfig(t *testing.T) {
 	 * Generate the key now that the app is initialized (to ensure logger
 	 * object for "keys" package has been set, else package won't work)
 	 */
-	_, err = keys.GenerateSignKey(keyfile)
+	_, err = keys.GenerateSignKey(keyfile, "tmp-key-utest-app")
 	if err != nil {
 		t.Fatalf("Error generating key: %s", err)
 	}

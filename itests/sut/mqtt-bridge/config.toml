@@ -8,7 +8,7 @@ NodemanApiUrl = "https://localhost/api/v1"
 
 [[Bridges]]
 Direction = "up"
-MqttTopic = "events/up/mqtt-bridge-testkey"
+MqttTopic = "events/up/tmp-key-itest"
 NatsSubject = "events.up.some_event"
 NatsQueue = "eventQ"
 Key = "/etc/dnstapir/mqtt-bridge/testkey.json"

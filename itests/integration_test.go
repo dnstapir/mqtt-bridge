@@ -56,6 +56,7 @@ const c_DIR_MQTT_BRIDGE = "mqtt-bridge/"
 const c_DIR_OUT = "../out/"
 const c_FILE_COMPOSE = "docker-compose.yaml"
 const c_FILE_TESTKEY = "testkey.json"
+const c_FILE_TESTKEY_KID = "tmp-key-itest" /* must match upbridge topic in config */
 const c_FILE_DOCKER = "Dockerfile"
 const c_IMAGE_TESTDOCKER_REPO = "mqtt-bridge"
 const c_IMAGE_TESTDOCKER_TAG = "itest"
@@ -116,7 +117,7 @@ func (t *iTest) setupWorkdir() {
 }
 
 func (t *iTest) setupKeys() {
-    key, err := keys.GenerateSignKey(filepath.Join(t.workdir, c_DIR_BASE, c_DIR_MQTT_BRIDGE, c_FILE_TESTKEY))
+    key, err := keys.GenerateSignKey(filepath.Join(t.workdir, c_DIR_BASE, c_DIR_MQTT_BRIDGE, c_FILE_TESTKEY), c_FILE_TESTKEY_KID)
 	if err != nil {
         panic(err)
     }
