@@ -18,6 +18,7 @@ type Conf struct {
 }
 
 type nodemanclient struct {
+	log    shared.LoggerIF
 	url    *url.URL
 	client http.Client
 }
@@ -26,6 +27,11 @@ const cNODEMAN_NODE_API_FMT = "/node/%s/public_key"
 
 func Create(conf Conf) (*nodemanclient, error) {
 	newNodeman := new(nodemanclient)
+
+	if conf.Log == nil {
+		return nil, errors.New("nil logger when creating nodeman client")
+	}
+	newNodeman.log = conf.Log
 
 	nodemanUrl, err := url.Parse(conf.NodemanApiUrl)
 	if err != nil {
@@ -67,6 +73,11 @@ func (n *nodemanclient) GetKey(keyID string) ([]byte, error) {
 		return nil, err
 	}
 	defer rsp.Body.Close()
+
+    if rsp.StatusCode != http.StatusOK {
+        n.log.Error("nodeman API returned status %d", rsp.StatusCode)
+		return nil, errors.New("bad reponse error code")
+	}
 
 	body, err := io.ReadAll(rsp.Body)
 	if err != nil {
