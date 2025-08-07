@@ -1,3 +1,5 @@
+.PHONY: all build install test coverage fmt vet clean tarball itest
+
 NAME:=mqtt-bridge
 OUT:=./out
 DEFAULT_INSTALLDIR:=/usr/bin
