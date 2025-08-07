@@ -204,10 +204,15 @@ func TestIntegrationDownBasic(t *testing.T) {
 
     inCh <- []byte(msgTmpl)
 
-    wanted := []byte{0x65}
+    wanted := []byte(msgTmpl)
     got := <-outCh
 
-    if !compareBytes(got, wanted) {
-        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
+    data, err := keys.CheckSignature(got, it.valkey)
+    if err != nil {
+        panic(err)
+    }
+
+    if !compareBytes(data, wanted) {
+        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(data))
     }
 }
