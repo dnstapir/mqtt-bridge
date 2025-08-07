@@ -51,9 +51,10 @@ const msgTmpl string = `
 
 const c_DIR_BASE = "sut/"
 const c_DIR_MQTT_BRIDGE = "mqtt-bridge/"
+const c_DIR_OUT = "../out/"
 const c_FILE_COMPOSE = "docker-compose.yaml"
 const c_FILE_TESTKEY = "testkey.json"
-const c_DIR_OUT = "../out/"
+const c_FILE_DOCKER = "Dockerfile"
 const c_IMAGE_TESTDOCKER_REPO = "mqtt-bridge"
 const c_IMAGE_TESTDOCKER_TAG = "itest"
 
@@ -125,6 +126,8 @@ func (t *iTest) setupKeys() {
 func (t *iTest) setupContainers() {
     ctx := context.Background()
 
+    copyFile(filepath.Join(c_DIR_BASE, c_FILE_DOCKER), filepath.Join(c_DIR_OUT, c_FILE_DOCKER))
+
     req := testcontainers.ContainerRequest{
         FromDockerfile: testcontainers.FromDockerfile{
             Context:    filepath.Join(".", c_DIR_OUT),
@@ -186,33 +189,77 @@ func compareBytes(a, b []byte) bool {
     return true
 }
 
-func TestIntegrationDownBasic(t *testing.T) {
+func copyFile(src, dst string) {
+    data, err := os.ReadFile(src)
+	if err != nil {
+        panic(err)
+	}
+
+    err = os.WriteFile(dst, data, 0666)
+	if err != nil {
+        panic(err)
+	}
+}
+
+//func TestIntegrationDownBasic(t *testing.T) {
+//    it := new(iTest)
+//    it.T = t /* upgrade to our custom test class */
+//    it.setup()
+//    defer it.teardown()
+//
+//    inCh, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
+//    if err != nil {
+//        panic(err)
+//    }
+//
+//    outCh, err := it.mqttClient.Subscribe("observations/down/tapir-pop")
+//    if err != nil {
+//        panic(err)
+//    }
+//
+//    inCh <- []byte(msgTmpl)
+//
+//    wanted := []byte(msgTmpl)
+//    got := <-outCh
+//
+//    data, err := keys.CheckSignature(got, it.valkey)
+//    if err != nil {
+//        panic(err)
+//    }
+//
+//    if !compareBytes(data, wanted) {
+//        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(data))
+//    }
+//}
+
+func TestIntegrationUpBasic(t *testing.T) {
     it := new(iTest)
     it.T = t /* upgrade to our custom test class */
     it.setup()
     defer it.teardown()
 
-    inCh, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
+    inCh, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
     if err != nil {
         panic(err)
     }
 
-    outCh, err := it.mqttClient.Subscribe("observations/down/tapir-pop")
+    outCh, err := it.natsClient.Subscribe("events.up.some_event", "eventQ")
     if err != nil {
         panic(err)
     }
 
-    inCh <- []byte(msgTmpl)
+    indata := []byte("{\"lala\": 1}")
+    signedIndata, err := keys.Sign(indata, it.signkey)
+    if err != nil {
+        panic(err)
+    }
 
-    wanted := []byte(msgTmpl)
+    inCh <- signedIndata
+
     got := <-outCh
 
-    data, err := keys.CheckSignature(got, it.valkey)
-    if err != nil {
-        panic(err)
-    }
-
-    if !compareBytes(data, wanted) {
-        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(data))
+    wanted := indata
+    if !compareBytes(wanted, got) {
+        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
     }
 }

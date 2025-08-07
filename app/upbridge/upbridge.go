@@ -77,7 +77,7 @@ func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
 	for {
 		select {
 		case <-ub.stopCh:
-			ub.log.Info("Stopping downbound bridge")
+			ub.log.Info("Stopping upbound bridge")
 			return
 		case sig := <-mqttCh:
 			keyID, err := keys.GetKeyIDFromSignedData(sig)
@@ -118,6 +118,7 @@ func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
 			ok := ub.schemaval.Validate(data)
 			if ok {
 				// TODO set data headers
+				ub.log.Info("Sending data '%s'", string(data))
 				natsCh <- data
 			} else {
 				ub.log.Error("Malformed data from MQTT, discarding...")

@@ -54,6 +54,7 @@ func (c *natsclient) Subscribe(subject string, queue string) (<-chan []byte, err
 	if err != nil {
         return nil, err
 	}
+    c.log.Debug("Nats subscription done")
 
     go func(){
 	    for msg := range msgCh {
@@ -75,6 +76,7 @@ func (c *natsclient) StartPublishing(subject string, queue string) (chan<- []byt
             msg := nats.NewMsg(subject)
             msg.Data = data
             // TODO NATS headers
+            c.log.Debug("Attempting to publish NATS message %s", string(msg.Data))
             err := c.conn.PublishMsg(msg)
             if err != nil {
                 c.log.Error("Failed to publish NATS message on subject '%s'", subject)

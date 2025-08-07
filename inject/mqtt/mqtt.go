@@ -157,7 +157,6 @@ func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
 
     go func(){
 	    for data := range dataChan {
-            c.log.Debug("Received data %s", string(data))
 
 	        mqttMsg := paho.Publish{
 	        	QoS:     0, // TODO make configurable?

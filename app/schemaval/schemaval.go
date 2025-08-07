@@ -66,7 +66,7 @@ func Create(conf Conf) (*Schemaval, error) {
 	newSchemaval.schema = schema
 
 	if newSchemaval.schema == nil {
-		panic("aaa")
+		panic("schema creation fault")
 	}
 
 	return newSchemaval, nil
