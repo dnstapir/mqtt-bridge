@@ -1,0 +1,49 @@
+volumes:
+  nats:
+
+networks:
+  core:
+    driver: bridge
+
+services:
+  mqtt-bridge:
+    image: mqtt-bridge:itest
+    restart: no
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    volumes:
+      - ./mqtt-bridge:/etc/dnstapir/mqtt-bridge:ro
+    networks:
+      - core
+  mosquitto:
+    image: eclipse-mosquitto:2.0.21-openssl
+    restart: no
+    ports:
+     - "1883:1883/tcp"
+    volumes:
+      - ./mosquitto:/mosquitto/config:ro
+    networks:
+      - core
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 mosquitto_sub -i mosquitto-healthcheck -t mosquitto-healthcheck -E -W 3"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
+  nats:
+    image: nats:alpine3.22
+    restart: no
+    command: "--config /etc/nats/nats.conf"
+    ports:
+      - "4222:4222/tcp"
+    volumes:
+      - ./nats:/etc/nats:ro
+    networks:
+      - core
+    healthcheck:
+      test: ["CMD-SHELL", "busybox wget http://127.0.0.1:8222/healthz -O - | grep \"ok\""]
+      interval: 3s
+      timeout: 3s
+      retries: 3

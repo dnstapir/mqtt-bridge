@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -10,21 +9,17 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/dnstapir/mqtt-bridge/app"
+	"github.com/dnstapir/mqtt-bridge/setup"
 )
 
 const c_ENVVAR_OVERRIDE_MQTT_URL = "DNSTAPIR_BRIDGE_MQTT_URL"
 const c_ENVVAR_OVERRIDE_NATS_URL = "DNSTAPIR_BRIDGE_NATS_URL"
 
 func main() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	var configFile string
+	var appConf setup.AppConf
 
-	var filename string
-
-	var application app.App
-
-	flag.StringVar(&filename,
+	flag.StringVar(&configFile,
 		"config-file",
 		"config.toml",
 		"Bridge config file",
@@ -32,36 +27,60 @@ func main() {
 
 	flag.Parse()
 
-	file, err := os.ReadFile(filename)
+	file, err := os.ReadFile(configFile)
 	if err != nil {
 		panic(err)
 	}
 
-	err = toml.Unmarshal(file, &application)
+	err = toml.Unmarshal(file, &appConf)
 	if err != nil {
 		panic(err)
 	}
 
-    envMqttUrl, overrideMqttUrl := os.LookupEnv(c_ENVVAR_OVERRIDE_MQTT_URL)
-    if overrideMqttUrl {
-        application.MqttUrl = envMqttUrl
-    }
+	envMqttUrl, overrideMqttUrl := os.LookupEnv(c_ENVVAR_OVERRIDE_MQTT_URL)
+	if overrideMqttUrl {
+		appConf.MqttUrl = envMqttUrl
+	}
 
-    envNatsUrl, overrideNatsUrl := os.LookupEnv(c_ENVVAR_OVERRIDE_NATS_URL)
-    if overrideNatsUrl {
-        application.NatsUrl = envNatsUrl
-    }
+	envNatsUrl, overrideNatsUrl := os.LookupEnv(c_ENVVAR_OVERRIDE_NATS_URL)
+	if overrideNatsUrl {
+		appConf.NatsUrl = envNatsUrl
+	}
 
-	//fmt.Printf("Read conf %+v\n", application)
+	application, err := setup.BuildApp(appConf)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error building application: '%s', exiting...\n", err)
+		os.Exit(-1)
+	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	sigChan := make(chan os.Signal, 1)
+	defer close(sigChan)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	application.Ctx = ctx
+	err = application.Initialize()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing application: '%s', exiting...\n", err)
+		os.Exit(-1)
+	}
 
-	fmt.Println("###### starting mqtt-bridge...")
-	go application.Run()
+	done := application.Run()
 
-	s := <-c
-	fmt.Println(fmt.Sprintf("###### mqtt-bridge got signal '%s', exiting...", s))
+	select {
+	case s := <-sigChan:
+		fmt.Fprintf(os.Stderr, "Got signal '%s', exiting...\n", s)
+	case err := <-done:
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "App exited with error: '%s'\n", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "Done!\n")
+		}
+	}
+
+	err = application.Stop()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error stopping app: '%s'\n", err)
+		os.Exit(-1)
+	}
+
+	os.Exit(0)
 }
