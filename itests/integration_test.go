@@ -8,6 +8,7 @@ import (
     "os"
     "path/filepath"
 	"testing"
+    "time"
 
 	"github.com/dnstapir/mqtt-bridge/app/keys"
 	"github.com/dnstapir/mqtt-bridge/inject/mqtt"
@@ -128,7 +129,8 @@ func (t *iTest) setupKeys() {
 }
 
 func (t *iTest) setupContainers() {
-    ctx := context.Background()
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
     copyFile(filepath.Join(c_DIR_BASE, c_FILE_DOCKER), filepath.Join(c_DIR_OUT, c_FILE_DOCKER))
 
@@ -247,5 +249,68 @@ func TestIntegrationUpBasicWithoutSchema(t *testing.T) {
     wanted := indata
     if !bytes.Equal(wanted, got) {
         t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
+    }
+}
+
+func TestIntegrationDownWithoutMqttConnectionOutage(t *testing.T) {
+    it := new(iTest)
+    it.T = t /* upgrade to our custom test class */
+    it.setup()
+    defer it.teardown()
+
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    inCh, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
+    if err != nil {
+        panic(err)
+    }
+
+    outCh, err := it.mqttClient.Subscribe("observations/down/tapir-pop")
+    if err != nil {
+        panic(err)
+    }
+
+    inCh <- []byte(msgTmpl)
+
+    wanted := []byte(msgTmpl)
+    got := <-outCh
+
+    data, err := keys.CheckSignature(got, it.valkey)
+    if err != nil {
+        panic(err)
+    }
+
+    if !bytes.Equal(data, wanted) {
+        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(data))
+    }
+
+    mosquittoContainer, err := it.stack.ServiceContainer(ctx, "mosquitto")
+    if err != nil {
+        panic(err)
+    }
+
+    err = mosquittoContainer.Stop(ctx, nil)
+    if err != nil {
+        panic(err)
+    }
+
+    err = mosquittoContainer.Start(ctx)
+    if err != nil {
+        panic(err)
+    }
+
+    inCh <- []byte(msgTmpl)
+
+    wanted = []byte(msgTmpl)
+    got = <-outCh
+
+    data, err = keys.CheckSignature(got, it.valkey)
+    if err != nil {
+        panic(err)
+    }
+
+    if !bytes.Equal(data, wanted) {
+        t.Fatalf("After mqtt restart, wanted: '%s', got: '%s'", string(wanted), string(data))
     }
 }
