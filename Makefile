@@ -41,4 +41,4 @@ tarball: outdir
 	git archive --format=tar.gz --prefix=$(NAME)-$(VERSION)/ -o $(OUT)/$(NAME)-$(VERSION).tar.gz HEAD
 
 itest: build
-	go test --tags=itests ./itests
+	go test -v --tags=itests ./itests
