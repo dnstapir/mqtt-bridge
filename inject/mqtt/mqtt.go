@@ -9,12 +9,15 @@ import (
 	"net/url"
 	"os"
 	"sync"
+    "time"
 
 	"github.com/dnstapir/mqtt-bridge/shared"
 
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
 )
+
+const c_MQTT_TIMEOUT = 30
 
 type Conf struct {
 	Log            shared.LoggerIF
@@ -25,11 +28,23 @@ type Conf struct {
 }
 
 type mqttclient struct {
-	log          shared.LoggerIF
-	autopahoConf autopaho.ClientConfig
-    connMan      *autopaho.ConnectionManager
+	log               shared.LoggerIF
+	autopahoConf      autopaho.ClientConfig
+    connMan           *autopaho.ConnectionManager
     subscriptionsMu   sync.Mutex
-	mqttSubscriptions []paho.Subscribe
+	subscriptions     subscriptionsMu
+    subscriptionOutCh chan []byte
+    connectionOk      connectionStatusMu
+}
+
+type subscriptionsMu struct {
+    sync.RWMutex
+    subs []paho.SubscribeOptions
+}
+
+type connectionStatusMu struct {
+    sync.RWMutex
+    ok bool
 }
 
 const cSCHEME_MQTTS = "mqtts"
@@ -57,7 +72,7 @@ func Create(conf Conf) (*mqttclient, error) {
 		ServerUrls:                    []*url.URL{mqttUrl},
 		KeepAlive:                     20,
 		CleanStartOnInitialConnection: false,
-		SessionExpiryInterval:         60,
+		SessionExpiryInterval:         500,
 		OnConnectionUp:                newClient.onConnectionUp,
 		OnConnectError:                newClient.onConnectError,
 		ClientConfig:                  pahoCfg,
@@ -88,7 +103,10 @@ func Create(conf Conf) (*mqttclient, error) {
 		newClient.autopahoConf.TlsCfg = &tlsCfg
 	}
 
-    newClient.mqttSubscriptions = make([]paho.Subscribe, 0)
+    newClient.subscriptionOutCh = make(chan []byte)
+    newClient.subscriptions.Lock()
+    newClient.subscriptions.subs = make([]paho.SubscribeOptions, 0)
+    newClient.subscriptions.Unlock()
 
 	return newClient, nil
 }
@@ -106,30 +124,35 @@ func (c *mqttclient) Connect() error {
 
     c.connMan = mqttConnM
 
+    c.connMan.AddOnPublishReceived(c.subscriptionCb)
+
+    c.connectionOk.Lock()
+    defer c.connectionOk.Unlock()
+    c.connectionOk.ok = true
+
 	return nil
 }
 
-func (c *mqttclient) Subscribe(topic string) (<-chan []byte, error) {
-	byteCh := make(chan []byte)
-    callback := func(pr autopaho.PublishReceived) (bool, error) {
-		for _, e := range pr.Errs {
-			if e != nil {
-				c.log.Error("Error while receiving MQTT message: '%s'", e)
-                panic(e)
-			}
+func (c *mqttclient) subscriptionCb(pr autopaho.PublishReceived) (bool, error) {
+	for _, e := range pr.Errs {
+		if e != nil {
+			c.log.Error("Error while receiving MQTT message: '%s'", e)
+            panic(e)
 		}
+	}
 
-		if pr.AlreadyHandled {
-			return true, nil
-		}
+    c.log.Debug("Received %d bytes on topic '%s'", len(pr.Packet.Payload), pr.Packet.Topic)
 
-        byteCh <- pr.Packet.Payload
-
+	if pr.AlreadyHandled {
 		return true, nil
 	}
 
-    c.connMan.AddOnPublishReceived(callback)
+    c.subscriptionOutCh <- pr.Packet.Payload
 
+	return true, nil
+}
+
+func (c *mqttclient) Subscribe(topic string) (<-chan []byte, error) {
     subscription := paho.SubscribeOptions{
 		Topic: topic,
 		QoS:   0,
@@ -143,13 +166,14 @@ func (c *mqttclient) Subscribe(topic string) (<-chan []byte, error) {
 	if err != nil {
 		panic(err)
 	}
-	c.log.Info("Subscribed: %+v", ack)
 
-	c.subscriptionsMu.Lock()
-	defer c.subscriptionsMu.Unlock()
-	c.mqttSubscriptions = append(c.mqttSubscriptions, sub)
+	c.subscriptions.Lock()
+	c.subscriptions.subs = append(c.subscriptions.subs, subscription)
+	c.subscriptions.Unlock()
 
-	return byteCh, nil
+	c.log.Info("Mqtt subscription done: %+v", ack)
+
+	return c.subscriptionOutCh, nil
 }
 
 func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
@@ -157,6 +181,7 @@ func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
 
     go func(){
 	    for data := range dataChan {
+            var err error
 
 	        mqttMsg := paho.Publish{
 	        	QoS:     0, // TODO make configurable?
@@ -169,28 +194,57 @@ func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
             if c.connMan == nil {
                 panic("iiiiiiiiiII")
             }
-	        _, err := c.connMan.Publish(context.Background(), &mqttMsg)
+
+            ctx, cancel := context.WithTimeout(context.Background(), c_MQTT_TIMEOUT*time.Second)
+            defer cancel()
+            err = c.connMan.AwaitConnection(ctx)
+            if err != nil {
+                c.log.Error("Error while awaiting MQTT connection")
+            }
+
+	        _, err = c.connMan.Publish(ctx, &mqttMsg)
 
 	        if err != nil {
-                c.log.Error("Failed to publish message on topic '%s'", topic)
+                c.log.Error("Error '%s' while publishing on topic '%s'", err, topic)
+            } else {
+                c.log.Debug("Successfully published %d bytes on MQTT topic '%s'", len(mqttMsg.Payload), topic)
 	        }
-
         }
+
         c.log.Warning("Publishing channel closed for topic '%s'", topic)
     }()
 
 	return dataChan, nil
 }
 
+func (c *mqttclient) CheckConnection() bool {
+    var ok bool
+
+    c.connectionOk.RLock()
+    ok = c.connectionOk.ok
+    c.connectionOk.RUnlock()
+
+    return ok
+}
+
 func (c *mqttclient) onClientError(err error) {
+    c.connectionOk.Lock()
+    defer c.connectionOk.Unlock()
+    c.connectionOk.ok = false
+
     if errors.Is(err, io.EOF) {
 	    c.log.Warning("onClientError called because of EOF")
+
     } else {
         panic(err)
     }
 }
 
 func (c *mqttclient) onServerDisconnect(d *paho.Disconnect) {
+    c.connectionOk.Lock()
+    defer c.connectionOk.Unlock()
+    c.connectionOk.ok = false
+
 	if d.Properties != nil {
 		c.log.Error("server requested disconnect: %s", d.Properties.ReasonString)
 	} else {
@@ -201,18 +255,31 @@ func (c *mqttclient) onServerDisconnect(d *paho.Disconnect) {
 
 func (c *mqttclient) onConnectionUp(cm *autopaho.ConnectionManager, connAck *paho.Connack) {
 	c.log.Info("connection up")
-	//subscriptionsMu.Lock()
-	//defer subscriptionsMu.Unlock()
-	//for _, sub := range mqttSubscriptions {
-	//	ack, err := cm.Subscribe(mqttCtx, &sub)
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//	mc.log.Info("Subscribed via 'onConnectionUp': %+v", ack)
-	//}
+	c.subscriptions.RLock()
+    subsCopy := make([]paho.SubscribeOptions, len(c.subscriptions.subs))
+    copy(subsCopy, c.subscriptions.subs)
+    c.subscriptions.RUnlock()
+
+    if len(subsCopy) != 0 {
+	    sub := paho.Subscribe{
+	    	Subscriptions: subsCopy,
+	    }
+
+	    _, err := c.connMan.Subscribe(context.Background(), &sub)
+	    if err != nil {
+	    	panic(err)
+	    }
+	    c.log.Info("Subscribed to %d topics when connection came up", len(subsCopy))
+    }
+
+    c.connectionOk.Lock()
+    c.connectionOk.ok = true
+    c.connectionOk.Unlock()
 }
 
 func (c *mqttclient) onConnectError(err error) {
 	c.log.Error("error whilst attempting connection: %s", err)
-    panic(err)
+    c.connectionOk.Lock()
+    c.connectionOk.ok = false
+    c.connectionOk.Unlock()
 }

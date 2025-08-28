@@ -11,12 +11,15 @@ func Logger() *logger {
 }
 
 func (l *logger) Debug(fmtStr string, vals ...any) {
+    fmt.Sprintf(format(fmtStr, vals))
 }
 
 func (l *logger) Info(fmtStr string, vals ...any) {
+    fmt.Sprintf(format(fmtStr, vals))
 }
 
 func (l *logger) Warning(fmtStr string, vals ...any) {
+    fmt.Sprintf(format(fmtStr, vals))
 }
 
 func (l *logger) Error(fmtStr string, vals ...any) {

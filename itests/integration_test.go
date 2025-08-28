@@ -177,6 +177,26 @@ func (t *iTest) teardown() {
     }
 }
 
+func (t *iTest) restartService(service string) {
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    container, err := t.stack.ServiceContainer(ctx, service)
+    if err != nil {
+        panic(err)
+    }
+
+    err = container.Stop(ctx, nil)
+    if err != nil {
+        panic(err)
+    }
+
+    err = container.Start(ctx)
+    if err != nil {
+        panic(err)
+    }
+}
+
 func copyFile(src, dst string) {
     data, err := os.ReadFile(src)
 	if err != nil {
@@ -252,29 +272,26 @@ func TestIntegrationUpBasicWithoutSchema(t *testing.T) {
     }
 }
 
-func TestIntegrationDownWithoutMqttConnectionOutage(t *testing.T) {
+func TestIntegrationDownDisconnect(t *testing.T) {
     it := new(iTest)
     it.T = t /* upgrade to our custom test class */
     it.setup()
     defer it.teardown()
 
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-
-    inCh, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
+    inChNats, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
     if err != nil {
         panic(err)
     }
 
-    outCh, err := it.mqttClient.Subscribe("observations/down/tapir-pop")
+    outChMqtt, err := it.mqttClient.Subscribe("observations/down/tapir-pop")
     if err != nil {
         panic(err)
     }
 
-    inCh <- []byte(msgTmpl)
+    inChNats <- []byte(msgTmpl)
 
     wanted := []byte(msgTmpl)
-    got := <-outCh
+    got := <-outChMqtt
 
     data, err := keys.CheckSignature(got, it.valkey)
     if err != nil {
@@ -285,25 +302,12 @@ func TestIntegrationDownWithoutMqttConnectionOutage(t *testing.T) {
         t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(data))
     }
 
-    mosquittoContainer, err := it.stack.ServiceContainer(ctx, "mosquitto")
-    if err != nil {
-        panic(err)
-    }
+    it.restartService("mosquitto")
 
-    err = mosquittoContainer.Stop(ctx, nil)
-    if err != nil {
-        panic(err)
-    }
-
-    err = mosquittoContainer.Start(ctx)
-    if err != nil {
-        panic(err)
-    }
-
-    inCh <- []byte(msgTmpl)
+    inChNats <- []byte(msgTmpl)
 
     wanted = []byte(msgTmpl)
-    got = <-outCh
+    got = <-outChMqtt
 
     data, err = keys.CheckSignature(got, it.valkey)
     if err != nil {
@@ -314,3 +318,89 @@ func TestIntegrationDownWithoutMqttConnectionOutage(t *testing.T) {
         t.Fatalf("After mqtt restart, wanted: '%s', got: '%s'", string(wanted), string(data))
     }
 }
+
+//func TestIntegrationUpBasicWithoutSchemaDisconnectMqtt(t *testing.T) {
+//    it := new(iTest)
+//    it.T = t /* upgrade to our custom test class */
+//    it.setup()
+//    defer it.teardown()
+//
+//    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
+//    if err != nil {
+//        panic(err)
+//    }
+//
+//    outChNats, err := it.natsClient.Subscribe("events.up.some_event", "eventQ")
+//    if err != nil {
+//        panic(err)
+//    }
+//
+//    indata := []byte("{\"lala\": 1}")
+//    signedIndata, err := keys.Sign(indata, it.signkey)
+//    if err != nil {
+//        panic(err)
+//    }
+//
+//    inChMqtt <- signedIndata
+//
+//    got := <-outChNats
+//
+//    wanted := indata
+//    if !bytes.Equal(wanted, got) {
+//        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
+//    }
+//
+//    it.restartService("mosquitto")
+//
+//    inChMqtt <- signedIndata
+//
+//    got = <-outChNats
+//
+//    wanted = indata
+//    if !bytes.Equal(wanted, got) {
+//        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
+//    }
+//}
+
+//func TestIntegrationUpBasicWithoutSchemaDisconnectNats(t *testing.T) {
+//    it := new(iTest)
+//    it.T = t /* upgrade to our custom test class */
+//    it.setup()
+//    defer it.teardown()
+//
+//    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
+//    if err != nil {
+//        panic(err)
+//    }
+//
+//    outChNats, err := it.natsClient.Subscribe("events.up.some_event", "eventQ")
+//    if err != nil {
+//        panic(err)
+//    }
+//
+//    indata := []byte("{\"lala\": 1}")
+//    signedIndata, err := keys.Sign(indata, it.signkey)
+//    if err != nil {
+//        panic(err)
+//    }
+//
+//    inChMqtt <- signedIndata
+//
+//    got := <-outChNats
+//
+//    wanted := indata
+//    if !bytes.Equal(wanted, got) {
+//        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
+//    }
+//
+//    it.restartService("nats")
+//
+//    inChMqtt <- signedIndata
+//
+//    got = <-outChNats
+//
+//    wanted = indata
+//    if !bytes.Equal(wanted, got) {
+//        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
+//    }
+//}
