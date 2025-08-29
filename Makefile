@@ -40,5 +40,9 @@ clean:
 tarball: outdir
 	git archive --format=tar.gz --prefix=$(NAME)-$(VERSION)/ -o $(OUT)/$(NAME)-$(VERSION).tar.gz HEAD
 
-itest: build
+container: build
+	cp ./itests/sut/Dockerfile ./out/Dockerfile
+	docker build --tag mqtt-bridge:itest -f out/Dockerfile out/
+
+itest: container
 	go test -v --tags=itests ./itests

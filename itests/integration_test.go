@@ -16,7 +16,6 @@ import (
 	"github.com/dnstapir/mqtt-bridge/inject/fake"
 	"github.com/dnstapir/mqtt-bridge/shared"
 
-    "github.com/testcontainers/testcontainers-go"
     "github.com/testcontainers/testcontainers-go/modules/compose"
 )
 
@@ -59,9 +58,7 @@ const c_DIR_OUT = "../out/"
 const c_FILE_COMPOSE = "docker-compose.yaml"
 const c_FILE_TESTKEY = "testkey.json"
 const c_FILE_TESTKEY_KID = "tmp-key-itest" /* must match upbridge topic in config */
-const c_FILE_DOCKER = "Dockerfile"
-const c_IMAGE_TESTDOCKER_REPO = "mqtt-bridge"
-const c_IMAGE_TESTDOCKER_TAG = "itest"
+const c_MQTT_BRIDGE_IMAGE_TAG = "mqtt-bridge:itest"
 
 func (t *iTest) setup() {
     keys.SetLogger(fake.Logger())
@@ -132,24 +129,6 @@ func (t *iTest) setupContainers() {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    copyFile(filepath.Join(c_DIR_BASE, c_FILE_DOCKER), filepath.Join(c_DIR_OUT, c_FILE_DOCKER))
-
-    req := testcontainers.ContainerRequest{
-        FromDockerfile: testcontainers.FromDockerfile{
-            Context:    filepath.Join(".", c_DIR_OUT),
-            Repo:       c_IMAGE_TESTDOCKER_REPO,
-            Tag:        c_IMAGE_TESTDOCKER_TAG,
-        },
-    }
-    prov, err := testcontainers.NewDockerProvider()
-    if err != nil {
-        panic(err)
-    }
-    _, err = prov.BuildImage(ctx, &req)
-    if err != nil {
-        panic(err)
-    }
-
     stack, err := compose.NewDockerCompose(filepath.Join(t.workdir, c_DIR_BASE, c_FILE_COMPOSE))
     if err != nil {
         panic(err)
@@ -170,7 +149,6 @@ func (t *iTest) teardown() {
         context.Background(),
         compose.RemoveOrphans(true),
         compose.RemoveVolumes(true),
-        compose.RemoveImagesLocal,
     )
     if err != nil {
         panic(err)
