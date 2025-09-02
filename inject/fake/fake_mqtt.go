@@ -29,6 +29,11 @@ func (m *mqtt) StartPublishing(subject string) (chan<- []byte, error) {
 	return m.pubCh, nil
 }
 
+func (m *mqtt) CheckConnection() bool {
+    return true
+}
+
+
 func (m *mqtt) Eavesdrop() []byte {
 	data := <-m.pubCh
 	return data

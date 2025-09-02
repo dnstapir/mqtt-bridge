@@ -126,6 +126,8 @@ func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
 		}
 	}
 
+    ub.log.Warning("Leaving main publishing loop")
+
 	// TODO also close other channels?
 }
 
