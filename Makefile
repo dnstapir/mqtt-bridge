@@ -46,7 +46,7 @@ container: build
 	docker build --tag mqtt-bridge:itest -f out/Dockerfile out/
 
 itest: container
-	go test -count=1 -v --tags=itests ./itests
+	go test -count=1 -v --tags=itests ./itests/...
 
 bench: container
-	go test -v -bench=./itests --tags=itests -count 5 -run=^\# ./itests
+	go test -v -bench=. --tags=itests -count 5 -run=^\# ./itests
