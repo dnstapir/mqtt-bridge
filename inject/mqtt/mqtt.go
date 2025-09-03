@@ -148,7 +148,7 @@ func (c *mqttclient) subscriptionCb(pr paho.PublishReceived) (bool, error) {
 		return true, nil
 	}
 
-    c.subscriptionOutCh <- pr.Packet.Payload
+    go func(){c.subscriptionOutCh <- pr.Packet.Payload}()
 
 	return true, nil
 }
@@ -265,9 +265,10 @@ func (c *mqttclient) CheckConnection() bool {
 
 func (c *mqttclient) onClientError(err error) {
     c.log.Info("Client error!")
+
     c.connectionOk.Lock()
-    defer c.connectionOk.Unlock()
     c.connectionOk.ok = false
+    c.connectionOk.Unlock()
 
     if errors.Is(err, io.EOF) {
 	    c.log.Warning("onClientError called because of EOF")
@@ -280,8 +281,8 @@ func (c *mqttclient) onClientError(err error) {
 func (c *mqttclient) onServerDisconnect(d *paho.Disconnect) {
     c.log.Info("Server disconnected!")
     c.connectionOk.Lock()
-    defer c.connectionOk.Unlock()
     c.connectionOk.ok = false
+    c.connectionOk.Unlock()
 
 	if d.Properties != nil {
 		c.log.Error("server requested disconnect: %s", d.Properties.ReasonString)
@@ -292,6 +293,7 @@ func (c *mqttclient) onServerDisconnect(d *paho.Disconnect) {
 
 func (c *mqttclient) onConnectionUp(cm *autopaho.ConnectionManager, connAck *paho.Connack) {
 	c.log.Info("connection came up, will subscribe")
+
 	c.subscriptions.RLock()
     subsCopy := make([]paho.SubscribeOptions, len(c.subscriptions.subs))
     copy(subsCopy, c.subscriptions.subs)

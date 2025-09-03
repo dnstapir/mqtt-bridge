@@ -21,6 +21,9 @@ func (m *mqtt) Subscribe(topic string) (<-chan []byte, error) {
 	return m.subCh, nil
 }
 
+func (m *mqtt) Stop() {
+}
+
 func (m *mqtt) Inject(data []byte) {
 	m.subCh <- data
 }

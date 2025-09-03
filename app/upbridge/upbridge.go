@@ -116,7 +116,7 @@ func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
 				ub.log.Error("Bad signature from MQTT, err: '%s'", err)
 				continue
 			}
-			ub.log.Error("Signature with ID '%s' ok", keyID)
+			ub.log.Debug("Signature with ID '%s' ok", keyID)
 
 			ok := ub.schemaval.Validate(data)
 			if ok {

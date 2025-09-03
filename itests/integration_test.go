@@ -73,19 +73,17 @@ const c_FILE_TESTKEY_KID = "tmp-key-itest" /* must match upbridge topic in confi
 const c_MQTT_BRIDGE_IMAGE_TAG = "mqtt-bridge:itest"
 const c_MAX_MQTT_BRIDGE_CONNECTION_CHECKS = 5
 
-func (t *iTest) setup() {
-	log := logging.Create(true, false)
+func (t *iTest) setup(debug bool) {
+	log := logging.Create(debug, false)
 
     keys.SetLogger(log)
     t.setupWorkdir()
     t.setupKeys()
     t.setupContainers()
-    t.setupClients()
+    t.setupClients(log)
 }
 
-func (t *iTest) setupClients() {
-	log := logging.Create(true, false)
-
+func (t *iTest) setupClients(log shared.LoggerIF) {
 	mqttConf := mqtt.Conf{
 		Log:            log,
         MqttUrl:        "mqtt://localhost:1883",
@@ -151,7 +149,11 @@ func (t *iTest) setupContainers() {
         panic(err)
     }
 
-    err = stack.Up(ctx, compose.Wait(true))
+    err = stack.Up(ctx,
+                   compose.Wait(true),
+                   compose.WithRecreate("nats"),
+                   compose.WithRecreate("mosquitto"),
+                   compose.WithRecreate("mqtt-bridge"))
     if err != nil {
         panic(err)
     }
@@ -225,7 +227,7 @@ func copyFile(src, dst string) {
 func TestIntegrationDownBasic(t *testing.T) {
     it := new(iTest)
     it.tester = t /* upgrade to our custom test class */
-    it.setup()
+    it.setup(true)
     defer it.teardown()
 
     inCh, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
@@ -256,7 +258,7 @@ func TestIntegrationDownBasic(t *testing.T) {
 func TestIntegrationUpBasicWithoutSchema(t *testing.T) {
     it := new(iTest)
     it.tester = t /* upgrade to our custom test class */
-    it.setup()
+    it.setup(true)
     defer it.teardown()
 
     inCh, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
@@ -288,7 +290,7 @@ func TestIntegrationUpBasicWithoutSchema(t *testing.T) {
 func TestIntegrationDownDisconnect(t *testing.T) {
     it := new(iTest)
     it.tester = t /* upgrade to our custom test class */
-    it.setup()
+    it.setup(true)
     defer it.teardown()
 
     inChNats, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
@@ -335,7 +337,7 @@ func TestIntegrationDownDisconnect(t *testing.T) {
 func TestIntegrationUpBasicWithoutSchemaDisconnectMqtt(t *testing.T) {
     it := new(iTest)
     it.tester = t /* upgrade to our custom test class */
-    it.setup()
+    it.setup(true)
     defer it.teardown()
 
     inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
@@ -354,7 +356,7 @@ func TestIntegrationUpBasicWithoutSchemaDisconnectMqtt(t *testing.T) {
         panic(err)
     }
 
-    inChMqtt <- signedIndata
+    go func(){inChMqtt <- signedIndata}()
 
     got := <-outChNats
 
@@ -365,7 +367,7 @@ func TestIntegrationUpBasicWithoutSchemaDisconnectMqtt(t *testing.T) {
 
     it.restartService("mosquitto")
 
-    inChMqtt <- signedIndata
+    go func(){inChMqtt <- signedIndata}()
 
     it.Logf("Waiting for response data...")
 
@@ -382,7 +384,7 @@ func TestIntegrationUpBasicWithoutSchemaDisconnectMqtt(t *testing.T) {
 func TestIntegrationUpBasicWithoutSchemaDisconnectNats(t *testing.T) {
     it := new(iTest)
     it.tester = t /* upgrade to our custom test class */
-    it.setup()
+    it.setup(true)
     defer it.teardown()
 
     inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
@@ -401,7 +403,7 @@ func TestIntegrationUpBasicWithoutSchemaDisconnectNats(t *testing.T) {
         panic(err)
     }
 
-    inChMqtt <- signedIndata
+    go func(){inChMqtt <- signedIndata}()
 
     got := <-outChNats
 
@@ -412,7 +414,7 @@ func TestIntegrationUpBasicWithoutSchemaDisconnectNats(t *testing.T) {
 
     it.restartService("nats")
 
-    inChMqtt <- signedIndata
+    go func(){inChMqtt <- signedIndata}()
 
     got = <-outChNats
 
@@ -426,7 +428,7 @@ func BenchmarkDownBasic(b *testing.B) {
     it := new(iTest)
     it.tester = b /* upgrade to our custom test class */
     it.bencher = b /* upgrade to our custom test class */
-    it.setup()
+    it.setup(false)
     n_MESSAGES := 50000
     defer it.teardown()
 
@@ -475,7 +477,7 @@ func BenchmarkUpBasicWithoutSchema(b *testing.B) {
     it := new(iTest)
     it.tester = b /* upgrade to our custom test class */
     it.bencher = b /* upgrade to our custom test class */
-    it.setup()
+    it.setup(false)
     n_MESSAGES := 50000
     defer it.teardown()
 

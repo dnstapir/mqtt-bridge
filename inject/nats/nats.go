@@ -92,6 +92,6 @@ func (c *natsclient) subscriptionCb(msg *nats.Msg) {
     c.log.Debug("Received nats message %s", string(msg.Data))
     data := msg.Data
 	msg.Ack()
-    c.subscriptionOutCh <- data
+    go func(){c.subscriptionOutCh <- data}()
     c.log.Debug("Done processing nats message")
 }
