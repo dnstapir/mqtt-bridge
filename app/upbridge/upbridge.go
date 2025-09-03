@@ -81,6 +81,7 @@ func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
 			return
 		case sig := <-mqttCh:
 			keyID, err := keys.GetKeyIDFromSignedData(sig)
+            ub.log.Debug("Got MQTT message from '%s'", keyID)
 			if err != nil {
 				ub.log.Error("Error getting key ID from signed data, err: '%s'", err)
 				continue
@@ -88,6 +89,7 @@ func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
 
 			key := ub.lru.GetValkeyFromCache(keyID)
 			if key == nil {
+                ub.log.Info("Key not found in cache, contacting nodeman", keyID)
 				newKeyBytes, err := ub.nodeman.GetKey(keyID)
 				if err != nil {
 					ub.log.Error("Error getting key '%s' from Nodeman, err: %s", keyID, err)
@@ -114,15 +116,16 @@ func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
 				ub.log.Error("Bad signature from MQTT, err: '%s'", err)
 				continue
 			}
+			ub.log.Error("Signature with ID '%s' ok", keyID)
 
 			ok := ub.schemaval.Validate(data)
 			if ok {
-				// TODO set data headers
-				ub.log.Info("Sending data '%s'", string(data))
 				natsCh <- data
+			    ub.log.Debug("Handed over %d bytes to NATS", len(data))
 			} else {
 				ub.log.Error("Malformed data from MQTT, discarding...")
 			}
+			ub.log.Debug("Processing of message from '%s' done!", keyID)
 		}
 	}
 

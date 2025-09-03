@@ -5,4 +5,5 @@ type MqttIF interface {
 	Subscribe(string) (<-chan []byte, error)
 	StartPublishing(string) (chan<- []byte, error)
     CheckConnection() bool
+    Stop()
 }

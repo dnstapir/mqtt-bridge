@@ -47,3 +47,6 @@ container: build
 
 itest: container
 	go test -count=1 -v --tags=itests ./itests
+
+bench: container
+	go test -v -bench=./itests --tags=itests -count 5 -run=^\# ./itests

@@ -20,10 +20,14 @@ type natsclient struct {
 	url  string
 	log  shared.LoggerIF
 	conn *nats.Conn
+    subscriptionOutCh chan []byte
+    sub *nats.Subscription
 }
 
 func Create(conf Conf) (*natsclient, error) {
 	newClient := new(natsclient)
+
+    newClient.subscriptionOutCh = make(chan []byte)
 
 	newClient.url = conf.NatsUrl
 	newClient.log = conf.Log
@@ -47,25 +51,21 @@ func (c *natsclient) Connect() error {
 }
 
 func (c *natsclient) Subscribe(subject string, queue string) (<-chan []byte, error) {
-	msgCh := make(chan *nats.Msg)
-	byteCh := make(chan []byte)
-
-    _, err := c.conn.ChanQueueSubscribe(subject, queue, msgCh)
+    sub, err := c.conn.QueueSubscribe(subject, queue, c.subscriptionCb)
 	if err != nil {
         return nil, err
 	}
+
+    c.sub = sub
     c.log.Debug("Nats subscription done")
 
-    go func(){
-	    for msg := range msgCh {
-            c.log.Debug("Received message %s", string(msg.Data))
-            byteCh <- msg.Data
-		    msg.Ack()
-        }
-        c.log.Warning("Channel closed for subscription to '%s'", subject)
-    }()
+	return c.subscriptionOutCh, nil
+}
 
-	return byteCh, nil
+func (c *natsclient) Stop() {
+    c.sub.Unsubscribe()
+    c.conn.Drain()
+    close(c.subscriptionOutCh)
 }
 
 func (c *natsclient) StartPublishing(subject string, queue string) (chan<- []byte, error) {
@@ -81,8 +81,17 @@ func (c *natsclient) StartPublishing(subject string, queue string) (chan<- []byt
             if err != nil {
                 c.log.Error("Failed to publish NATS message on subject '%s'", subject)
             }
+            c.log.Debug("Published NATS message to subject %s!", subject)
         }
     }()
 
     return dataChan, nil
+}
+
+func (c *natsclient) subscriptionCb(msg *nats.Msg) {
+    c.log.Debug("Received nats message %s", string(msg.Data))
+    data := msg.Data
+	msg.Ack()
+    c.subscriptionOutCh <- data
+    c.log.Debug("Done processing nats message")
 }

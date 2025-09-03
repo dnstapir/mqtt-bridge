@@ -63,7 +63,7 @@ func Create(conf Conf) (*mqttclient, error) {
 		return nil, errors.New("invalid mqtt url")
 	}
 
-    newClient.subscriptionOutCh = make(chan []byte, 100)
+    newClient.subscriptionOutCh = make(chan []byte)
     newClient.subscriptions.Lock()
     newClient.subscriptions.subs = make([]paho.SubscribeOptions, 0)
     newClient.subscriptions.Unlock()
@@ -174,7 +174,8 @@ func (c *mqttclient) Subscribe(topic string) (<-chan []byte, error) {
 	    sub := paho.Subscribe{
 	    	Subscriptions: []paho.SubscribeOptions{subscription},
 	    }
-	    _, err := c.connMan.Subscribe(context.Background(), &sub)
+        ctx, _ := context.WithTimeout(context.Background(), c_MQTT_TIMEOUT*time.Second)
+	    _, err := c.connMan.Subscribe(ctx, &sub)
 	    if err != nil {
             // Connection was up, but we couldn't reconnect
             c.log.Error("Failed to subscribe to topic '%s'")
@@ -184,8 +185,35 @@ func (c *mqttclient) Subscribe(topic string) (<-chan []byte, error) {
 	return c.subscriptionOutCh, nil
 }
 
+func (c *mqttclient) Stop() {
+    ctx, cancel := context.WithTimeout(context.Background(), c_MQTT_TIMEOUT*time.Second)
+    defer cancel()
+
+	c.subscriptions.RLock()
+    subsCopy := make([]paho.SubscribeOptions, len(c.subscriptions.subs))
+    copy(subsCopy, c.subscriptions.subs)
+    c.subscriptions.RUnlock()
+
+    unsub := new(paho.Unsubscribe)
+
+    for _, s := range subsCopy {
+        unsub.Topics = append(unsub.Topics, s.Topic)
+    }
+
+    _, err := c.connMan.Unsubscribe(ctx, unsub)
+    if err != nil {
+        panic(err)
+    }
+
+	c.subscriptions.Lock()
+    c.subscriptions.subs = nil
+    c.subscriptions.Unlock()
+
+    close(c.subscriptionOutCh)
+}
+
 func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
-    dataChan := make(chan []byte, 100)
+    dataChan := make(chan []byte)
 
     go func(){
 	    for data := range dataChan {

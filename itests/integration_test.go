@@ -5,23 +5,35 @@ package itests
 import (
     "bytes"
     "context"
+    "fmt"
     "os"
     "path/filepath"
+    "sync"
 	"testing"
     "time"
 
 	"github.com/dnstapir/mqtt-bridge/app/keys"
 	"github.com/dnstapir/mqtt-bridge/inject/mqtt"
 	"github.com/dnstapir/mqtt-bridge/inject/nats"
-	"github.com/dnstapir/mqtt-bridge/inject/fake"
+	"github.com/dnstapir/mqtt-bridge/inject/logging"
 	"github.com/dnstapir/mqtt-bridge/shared"
 
     "github.com/testcontainers/testcontainers-go/modules/compose"
 )
 
+type tester interface {
+    Logf(format string, args ...any)
+    Fatalf(format string, args ...any)
+    TempDir() string
+}
+
+type bencher interface {
+    ResetTimer()
+}
 
 type iTest struct {
-    *testing.T
+    tester
+    bencher
     mqttClient shared.MqttIF
     natsClient shared.NatsIF
     workdir string
@@ -39,7 +51,7 @@ const msgTmpl string = `
     "list_type": "doubtlist",
     "added": [
         {
-            "name": "leon.xa",
+            "name": "leon%d.xa",
             "time_added": "2025-08-05T00:06:21.347168698+02:00",
             "ttl": 3600,
             "tag_mask": 666,
@@ -59,9 +71,12 @@ const c_FILE_COMPOSE = "docker-compose.yaml"
 const c_FILE_TESTKEY = "testkey.json"
 const c_FILE_TESTKEY_KID = "tmp-key-itest" /* must match upbridge topic in config */
 const c_MQTT_BRIDGE_IMAGE_TAG = "mqtt-bridge:itest"
+const c_MAX_MQTT_BRIDGE_CONNECTION_CHECKS = 5
 
 func (t *iTest) setup() {
-    keys.SetLogger(fake.Logger())
+	log := logging.Create(true, false)
+
+    keys.SetLogger(log)
     t.setupWorkdir()
     t.setupKeys()
     t.setupContainers()
@@ -69,8 +84,10 @@ func (t *iTest) setup() {
 }
 
 func (t *iTest) setupClients() {
+	log := logging.Create(true, false)
+
 	mqttConf := mqtt.Conf{
-		Log:            fake.Logger(),
+		Log:            log,
         MqttUrl:        "mqtt://localhost:1883",
 	}
     mqttClient, err := mqtt.Create(mqttConf)
@@ -84,7 +101,7 @@ func (t *iTest) setupClients() {
     t.mqttClient = mqttClient
 
 	natsConf := nats.Conf{
-		Log:     fake.Logger(),
+		Log:     log,
         NatsUrl: "nats://localhost:4222",
 	}
     natsClient, err := nats.Create(natsConf)
@@ -143,19 +160,24 @@ func (t *iTest) setupContainers() {
 }
 
 func (t *iTest) teardown() {
+    ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+    defer cancel()
     t.mqttClient = nil // TODO call Stop() on client or something?
     t.natsClient = nil // TODO call Stop() on client or something?
     err := t.stack.Down(
-        context.Background(),
+        ctx,
         compose.RemoveOrphans(true),
         compose.RemoveVolumes(true),
     )
+
     if err != nil {
         panic(err)
     }
 }
 
 func (t *iTest) restartService(service string) {
+    t.Logf("Restarting service '%s'", service)
+
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
     defer cancel()
 
@@ -173,6 +195,19 @@ func (t *iTest) restartService(service string) {
     if err != nil {
         panic(err)
     }
+
+    for i := range c_MAX_MQTT_BRIDGE_CONNECTION_CHECKS {
+        if t.mqttClient.CheckConnection() {
+            break
+        }
+
+        if i == c_MAX_MQTT_BRIDGE_CONNECTION_CHECKS-1 {
+            panic("max mqtt connection retries reached after restarting service")
+        }
+        time.Sleep(5*time.Second)
+    }
+
+    t.Logf("Done restarting '%s'!", service)
 }
 
 func copyFile(src, dst string) {
@@ -189,7 +224,7 @@ func copyFile(src, dst string) {
 
 func TestIntegrationDownBasic(t *testing.T) {
     it := new(iTest)
-    it.T = t /* upgrade to our custom test class */
+    it.tester = t /* upgrade to our custom test class */
     it.setup()
     defer it.teardown()
 
@@ -220,7 +255,7 @@ func TestIntegrationDownBasic(t *testing.T) {
 
 func TestIntegrationUpBasicWithoutSchema(t *testing.T) {
     it := new(iTest)
-    it.T = t /* upgrade to our custom test class */
+    it.tester = t /* upgrade to our custom test class */
     it.setup()
     defer it.teardown()
 
@@ -252,7 +287,7 @@ func TestIntegrationUpBasicWithoutSchema(t *testing.T) {
 
 func TestIntegrationDownDisconnect(t *testing.T) {
     it := new(iTest)
-    it.T = t /* upgrade to our custom test class */
+    it.tester = t /* upgrade to our custom test class */
     it.setup()
     defer it.teardown()
 
@@ -277,7 +312,7 @@ func TestIntegrationDownDisconnect(t *testing.T) {
     }
 
     if !bytes.Equal(data, wanted) {
-        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(data))
+        it.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(data))
     }
 
     it.restartService("mosquitto")
@@ -293,92 +328,205 @@ func TestIntegrationDownDisconnect(t *testing.T) {
     }
 
     if !bytes.Equal(data, wanted) {
-        t.Fatalf("After mqtt restart, wanted: '%s', got: '%s'", string(wanted), string(data))
+        it.Fatalf("After mqtt restart, wanted: '%s', got: '%s'", string(wanted), string(data))
     }
 }
 
-//func TestIntegrationUpBasicWithoutSchemaDisconnectMqtt(t *testing.T) {
-//    it := new(iTest)
-//    it.T = t /* upgrade to our custom test class */
-//    it.setup()
-//    defer it.teardown()
-//
-//    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
-//    if err != nil {
-//        panic(err)
-//    }
-//
-//    outChNats, err := it.natsClient.Subscribe("events.up.some_event", "eventQ")
-//    if err != nil {
-//        panic(err)
-//    }
-//
-//    indata := []byte("{\"lala\": 1}")
-//    signedIndata, err := keys.Sign(indata, it.signkey)
-//    if err != nil {
-//        panic(err)
-//    }
-//
-//    inChMqtt <- signedIndata
-//
-//    got := <-outChNats
-//
-//    wanted := indata
-//    if !bytes.Equal(wanted, got) {
-//        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
-//    }
-//
-//    it.restartService("mosquitto")
-//
-//    inChMqtt <- signedIndata
-//
-//    got = <-outChNats
-//
-//    wanted = indata
-//    if !bytes.Equal(wanted, got) {
-//        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
-//    }
-//}
+func TestIntegrationUpBasicWithoutSchemaDisconnectMqtt(t *testing.T) {
+    it := new(iTest)
+    it.tester = t /* upgrade to our custom test class */
+    it.setup()
+    defer it.teardown()
 
-//func TestIntegrationUpBasicWithoutSchemaDisconnectNats(t *testing.T) {
-//    it := new(iTest)
-//    it.T = t /* upgrade to our custom test class */
-//    it.setup()
-//    defer it.teardown()
-//
-//    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
-//    if err != nil {
-//        panic(err)
-//    }
-//
-//    outChNats, err := it.natsClient.Subscribe("events.up.some_event", "eventQ")
-//    if err != nil {
-//        panic(err)
-//    }
-//
-//    indata := []byte("{\"lala\": 1}")
-//    signedIndata, err := keys.Sign(indata, it.signkey)
-//    if err != nil {
-//        panic(err)
-//    }
-//
-//    inChMqtt <- signedIndata
-//
-//    got := <-outChNats
-//
-//    wanted := indata
-//    if !bytes.Equal(wanted, got) {
-//        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
-//    }
-//
-//    it.restartService("nats")
-//
-//    inChMqtt <- signedIndata
-//
-//    got = <-outChNats
-//
-//    wanted = indata
-//    if !bytes.Equal(wanted, got) {
-//        t.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
-//    }
-//}
+    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
+    if err != nil {
+        panic(err)
+    }
+
+    outChNats, err := it.natsClient.Subscribe("events.up.some_event", "eventQ")
+    if err != nil {
+        panic(err)
+    }
+
+    indata := []byte("{\"lala\": 1}")
+    signedIndata, err := keys.Sign(indata, it.signkey)
+    if err != nil {
+        panic(err)
+    }
+
+    inChMqtt <- signedIndata
+
+    got := <-outChNats
+
+    wanted := indata
+    if !bytes.Equal(wanted, got) {
+        it.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
+    }
+
+    it.restartService("mosquitto")
+
+    inChMqtt <- signedIndata
+
+    it.Logf("Waiting for response data...")
+
+    got = <-outChNats
+
+    it.Logf("Got it!")
+
+    wanted = indata
+    if !bytes.Equal(wanted, got) {
+        it.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
+    }
+}
+
+func TestIntegrationUpBasicWithoutSchemaDisconnectNats(t *testing.T) {
+    it := new(iTest)
+    it.tester = t /* upgrade to our custom test class */
+    it.setup()
+    defer it.teardown()
+
+    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
+    if err != nil {
+        panic(err)
+    }
+
+    outChNats, err := it.natsClient.Subscribe("events.up.some_event", "eventQ")
+    if err != nil {
+        panic(err)
+    }
+
+    indata := []byte("{\"lala\": 1}")
+    signedIndata, err := keys.Sign(indata, it.signkey)
+    if err != nil {
+        panic(err)
+    }
+
+    inChMqtt <- signedIndata
+
+    got := <-outChNats
+
+    wanted := indata
+    if !bytes.Equal(wanted, got) {
+        it.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
+    }
+
+    it.restartService("nats")
+
+    inChMqtt <- signedIndata
+
+    got = <-outChNats
+
+    wanted = indata
+    if !bytes.Equal(wanted, got) {
+        it.Fatalf("wanted: '%s', got: '%s'", string(wanted), string(got))
+    }
+}
+
+func BenchmarkDownBasic(b *testing.B) {
+    it := new(iTest)
+    it.tester = b /* upgrade to our custom test class */
+    it.bencher = b /* upgrade to our custom test class */
+    it.setup()
+    n_MESSAGES := 50000
+    defer it.teardown()
+
+    inCh, err := it.natsClient.StartPublishing("observations.down.tapir-pop", "observationsQ")
+    if err != nil {
+        panic(err)
+    }
+
+    outCh, err := it.mqttClient.Subscribe("observations/down/tapir-pop")
+    if err != nil {
+        panic(err)
+    }
+
+    it.ResetTimer()
+
+    var count = 0
+	var wg sync.WaitGroup
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        for range outCh {
+            count++
+            if count == n_MESSAGES {
+                it.Logf("All messages received!")
+                break
+            }
+        }
+    }()
+
+    for i := range n_MESSAGES {
+        inCh <- []byte(fmt.Sprintf(msgTmpl, i))
+    }
+
+    wg.Wait()
+
+    it.mqttClient.Stop()
+    close(inCh)
+
+    /* For sanity */
+    if n_MESSAGES != count {
+        it.Fatalf("Sent %d messages but only received %d", n_MESSAGES, count)
+    }
+}
+
+func BenchmarkUpBasicWithoutSchema(b *testing.B) {
+    it := new(iTest)
+    it.tester = b /* upgrade to our custom test class */
+    it.bencher = b /* upgrade to our custom test class */
+    it.setup()
+    n_MESSAGES := 50000
+    defer it.teardown()
+
+    preparedData := make([][]byte, n_MESSAGES)
+    for i := range n_MESSAGES {
+        indata := []byte(fmt.Sprintf("{\"lala\": %d}", i))
+        signedIndata, err := keys.Sign(indata, it.signkey)
+        if err != nil {
+            panic(err)
+        }
+
+        preparedData[i] = signedIndata
+    }
+
+    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
+    if err != nil {
+        panic(err)
+    }
+
+    outChNats, err := it.natsClient.Subscribe("events.up.some_event", "eventQ")
+    if err != nil {
+        panic(err)
+    }
+
+    it.ResetTimer()
+
+    var count = 0
+	var wg sync.WaitGroup
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        for range outChNats {
+            count++
+            if count == n_MESSAGES {
+                it.Logf("All messages received!")
+                break
+            }
+        }
+    }()
+
+    for _, d := range preparedData {
+        inChMqtt <- d
+    }
+
+    wg.Wait()
+
+    it.natsClient.Stop()
+    close(inChMqtt)
+
+    /* For sanity */
+    if n_MESSAGES != count {
+        it.Fatalf("Sent %d messages but only received %d", n_MESSAGES, count)
+    }
+}
