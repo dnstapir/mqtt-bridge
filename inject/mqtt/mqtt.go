@@ -35,6 +35,7 @@ type mqttclient struct {
 	subscriptionOutCh chan []byte
 	done              chan struct{}
 	connectionOk      connectionStatusMu
+    stopped           bool
 }
 
 type subscriptionsMu struct {
@@ -196,6 +197,9 @@ func (c *mqttclient) Subscribe(topic string) (<-chan []byte, error) {
 }
 
 func (c *mqttclient) Stop() {
+    if c.stopped {
+        return
+    }
 	ctx, cancel := context.WithTimeout(context.Background(), c_MQTT_TIMEOUT*time.Second)
 	defer cancel()
 
@@ -213,7 +217,7 @@ func (c *mqttclient) Stop() {
 	if len(unsub.Topics) > 0 && c.connMan != nil {
 		_, err := c.connMan.Unsubscribe(ctx, unsub)
 		if err != nil {
-			c.log.Error("Unubsribe failed: %s", err)
+			c.log.Error("Unubscribe failed: %s", err)
 		}
 	}
 
@@ -224,6 +228,8 @@ func (c *mqttclient) Stop() {
 	close(c.done)
 	time.Sleep(10 * time.Millisecond)
 	close(c.subscriptionOutCh)
+
+    c.stopped = true
 }
 
 func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
