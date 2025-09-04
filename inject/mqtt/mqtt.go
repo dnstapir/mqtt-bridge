@@ -187,8 +187,7 @@ func (c *mqttclient) Subscribe(topic string) (<-chan []byte, error) {
 		_, err := c.connMan.Subscribe(ctx, &sub)
 		cancel()
 		if err != nil {
-			// Connection was up, but we couldn't reconnect
-			c.log.Warning("Failed to subscribe to topic '%s': %s", err)
+			c.log.Warning("Failed to subscribe to topic '%s': %s", topic, err)
 			c.log.Info("Will attempt to subscribe again once connection is stable")
 		}
 	}

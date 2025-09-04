@@ -65,7 +65,6 @@ const c_DIR_OUT = "../out/"
 const c_FILE_COMPOSE = "docker-compose.yaml"
 const c_FILE_TESTKEY = "testkey.json"
 const c_FILE_TESTKEY_KID = "tmp-key-itest" /* must match upbridge topic in config */
-const c_MQTT_BRIDGE_IMAGE_TAG = "mqtt-bridge:itest"
 const c_MAX_MQTT_BRIDGE_CONNECTION_CHECKS = 5
 
 func (t *iTest) setup(debug bool) {
