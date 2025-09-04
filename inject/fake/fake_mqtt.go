@@ -33,9 +33,8 @@ func (m *mqtt) StartPublishing(subject string) (chan<- []byte, error) {
 }
 
 func (m *mqtt) CheckConnection() bool {
-    return true
+	return true
 }
-
 
 func (m *mqtt) Eavesdrop() []byte {
 	data := <-m.pubCh
