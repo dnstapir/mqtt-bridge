@@ -135,7 +135,7 @@ func (t *iTest) setupKeys() {
 }
 
 func (t *iTest) setupContainers() {
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
     defer cancel()
 
     stack, err := compose.NewDockerCompose(filepath.Join(t.workdir, c_DIR_BASE, c_FILE_COMPOSE))
@@ -156,7 +156,7 @@ func (t *iTest) setupContainers() {
 }
 
 func (t *iTest) teardown() {
-    ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
     defer cancel()
     t.mqttClient = nil // TODO call Stop() on client or something?
     t.natsClient = nil // TODO call Stop() on client or something?
@@ -174,7 +174,7 @@ func (t *iTest) teardown() {
 func (t *iTest) restartService(service string) {
     t.Logf("Restarting service '%s'", service)
 
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
     defer cancel()
 
     container, err := t.stack.ServiceContainer(ctx, service)
