@@ -142,7 +142,6 @@ func (c *mqttclient) subscriptionCb(pr paho.PublishReceived) (bool, error) {
 	for _, e := range pr.Errs {
 		if e != nil {
 			c.log.Error("Error while receiving MQTT message: '%s'", e)
-			panic(e)
 		}
 	}
 
@@ -153,9 +152,9 @@ func (c *mqttclient) subscriptionCb(pr paho.PublishReceived) (bool, error) {
 	go func() {
 		select {
 		case c.subscriptionOutCh <- pr.Packet.Payload:
-			c.log.Debug("Succesfully handled packet on topic '%s'", pr.Packet.Topic)
+			c.log.Debug("Successfully handled packet on topic '%s'", pr.Packet.Topic)
 		case <-c.done:
-			c.log.Warning("Shutdown signaled, aborting handling of incoming mqtt packet")
+			c.log.Warning("Shutdown signaled, dropping incoming mqtt packet")
 			return
 		}
 	}()
