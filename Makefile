@@ -36,9 +36,17 @@ vet:
 
 clean:
 	-rm -rf $(OUT)
+	-go clean -testcache
 
 tarball: outdir
 	git archive --format=tar.gz --prefix=$(NAME)-$(VERSION)/ -o $(OUT)/$(NAME)-$(VERSION).tar.gz HEAD
 
-itest: build
-	go test --tags=itests ./itests
+container: build
+	cp ./itests/sut/Dockerfile ./out/Dockerfile
+	docker build --tag mqtt-bridge:itest -f out/Dockerfile out/
+
+itest: container
+	go test -count=1 -v --tags=itests ./itests/...
+
+bench: container
+	go test -v -bench=. --tags=itests -count 5 -run=^\# ./itests

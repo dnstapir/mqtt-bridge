@@ -90,7 +90,6 @@ func (a *App) Run() <-chan error {
 			return
 		}
 
-
 		a.startBridges()
 		a.Log.Info("Entering main loop")
 		for {

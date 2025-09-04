@@ -20,6 +20,9 @@ func (n *nats) Subscribe(subject string, queue string) (<-chan []byte, error) {
 	return n.subCh, nil
 }
 
+func (n *nats) Stop() {
+}
+
 func (n *nats) Inject(data []byte) {
 	n.subCh <- data
 }

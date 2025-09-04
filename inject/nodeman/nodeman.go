@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-    "time"
+	"time"
 
 	"github.com/dnstapir/mqtt-bridge/shared"
 )
@@ -51,7 +51,7 @@ func Create(conf Conf) (*nodemanclient, error) {
 
 	client := http.Client{
 		Transport: tr,
-        Timeout:   30 * time.Second,
+		Timeout:   30 * time.Second,
 	}
 
 	newNodeman.client = client
@@ -74,8 +74,8 @@ func (n *nodemanclient) GetKey(keyID string) ([]byte, error) {
 	}
 	defer rsp.Body.Close()
 
-    if rsp.StatusCode != http.StatusOK {
-        n.log.Error("nodeman API returned status %d", rsp.StatusCode)
+	if rsp.StatusCode != http.StatusOK {
+		n.log.Error("nodeman API returned status %d", rsp.StatusCode)
 		return nil, errors.New("bad reponse error code")
 	}
 
