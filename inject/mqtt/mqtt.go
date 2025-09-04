@@ -116,15 +116,16 @@ func Create(conf Conf) (*mqttclient, error) {
 }
 
 func (c *mqttclient) Connect() error {
-	ctx, _ := context.WithTimeout(context.Background(), c_MQTT_TIMEOUT*time.Second)
-	mqttConnM, err := autopaho.NewConnection(ctx, c.autopahoConf)
+	mqttConnM, err := autopaho.NewConnection(context.Background(), c.autopahoConf)
 	if err != nil {
 		return err
 	}
 
 	c.connMan = mqttConnM
 
+	ctx, cancel := context.WithTimeout(context.Background(), c_MQTT_TIMEOUT*time.Second)
 	err = mqttConnM.AwaitConnection(ctx)
+    cancel()
 	if err != nil {
 		return err
 	}
