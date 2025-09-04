@@ -230,6 +230,10 @@ func (c *mqttclient) Stop() {
 func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
 	dataChan := make(chan []byte)
 
+	if c.connMan == nil {
+		return nil, errors.New("mqtt client must connect first")
+	}
+
 	go func() {
 		for data := range dataChan {
 			var err error
@@ -242,15 +246,13 @@ func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
 			}
 
 			c.log.Debug("Attempting to publish on topic '%s'", topic)
-			if c.connMan == nil {
-				panic("iiiiiiiiiII")
-			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), c_MQTT_TIMEOUT*time.Second)
-			defer cancel()
 			err = c.connMan.AwaitConnection(ctx)
 			if err != nil {
 				c.log.Error("Error while awaiting MQTT connection")
+				cancel()
+				continue
 			}
 
 			_, err = c.connMan.Publish(ctx, &mqttMsg)
@@ -260,6 +262,7 @@ func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
 			} else {
 				c.log.Debug("Successfully published %d bytes on MQTT topic '%s'", len(mqttMsg.Payload), topic)
 			}
+			cancel()
 		}
 
 		c.log.Warning("Publishing channel closed for topic '%s'", topic)
