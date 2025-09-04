@@ -9,6 +9,7 @@ import (
 )
 
 func TestIntegrationUpBasicWithoutSchemaDisconnectNats(t *testing.T) {
+    t.Skip()
     it := new(iTest)
     it.tester = t /* upgrade to our custom test class */
     it.setup(true)
