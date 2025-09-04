@@ -2,6 +2,7 @@ package nats
 
 import (
 	"errors"
+    "time"
 	"github.com/dnstapir/mqtt-bridge/shared"
 	"github.com/nats-io/nats.go"
 )
@@ -21,13 +22,15 @@ type natsclient struct {
 	log  shared.LoggerIF
 	conn *nats.Conn
     subscriptionOutCh chan []byte
+    done              chan struct{}
     sub *nats.Subscription
 }
 
 func Create(conf Conf) (*natsclient, error) {
 	newClient := new(natsclient)
 
-    newClient.subscriptionOutCh = make(chan []byte)
+    newClient.subscriptionOutCh = make(chan []byte, 1024)
+    newClient.done              = make(chan struct{})
 
 	newClient.url = conf.NatsUrl
 	newClient.log = conf.Log
@@ -63,8 +66,25 @@ func (c *natsclient) Subscribe(subject string, queue string) (<-chan []byte, err
 }
 
 func (c *natsclient) Stop() {
-    c.sub.Unsubscribe()
-    c.conn.Drain()
+    if c.sub != nil {
+        err := c.sub.Unsubscribe()
+        if err != nil {
+            c.log.Warning("Unsubscribe failed in nats: %s", err)
+        }
+        c.sub = nil
+    }
+
+
+    if c.conn != nil {
+        err := c.conn.Drain()
+        if err != nil {
+            c.log.Warning("Drain failed in nats: %s", err)
+        }
+        c.conn = nil
+    }
+
+    close(c.done)
+    time.Sleep(10 * time.Millisecond)
     close(c.subscriptionOutCh)
 }
 
@@ -90,8 +110,16 @@ func (c *natsclient) StartPublishing(subject string, queue string) (chan<- []byt
 
 func (c *natsclient) subscriptionCb(msg *nats.Msg) {
     c.log.Debug("Received nats message %s", string(msg.Data))
-    data := msg.Data
-	msg.Ack()
-    go func(){c.subscriptionOutCh <- data}()
+
+    go func(){
+        select {
+        case c.subscriptionOutCh <- msg.Data:
+            c.log.Debug("Succesfully handled packet on subject '%s'", msg.Subject)
+        case <-c.done:
+            c.log.Warning("Shutdown signaled, aborting handling of incoming nats message")
+            return
+        }
+    }()
+
     c.log.Debug("Done processing nats message")
 }
