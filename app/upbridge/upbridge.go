@@ -128,10 +128,6 @@ func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
 			ub.log.Debug("Processing of message from '%s' done!", keyID)
 		}
 	}
-
-	ub.log.Warning("Leaving main publishing loop")
-
-	// TODO also close other channels?
 }
 
 func (ub *upbridge) Stop() {
