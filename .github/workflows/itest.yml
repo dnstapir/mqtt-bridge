@@ -1,4 +1,6 @@
 name: Itest
+permissions:
+  contents: read
 
 on: [push]
 
