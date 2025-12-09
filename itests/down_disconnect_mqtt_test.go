@@ -5,7 +5,9 @@ package itests
 import (
     "bytes"
     "testing"
+
 	"github.com/dnstapir/mqtt-bridge/app/keys"
+    "github.com/dnstapir/mqtt-bridge/shared"
 )
 
 func TestIntegrationDownDisconnect(t *testing.T) {
@@ -24,12 +26,15 @@ func TestIntegrationDownDisconnect(t *testing.T) {
         panic(err)
     }
 
-    inChNats <- []byte(msgTmpl)
+    msg := shared.NatsData {
+        Payload: []byte(msgTmpl),
+    }
+    inChNats <- msg
 
-    wanted := []byte(msgTmpl)
+    wanted := msg.Payload
     got := <-outChMqtt
 
-    data, err := keys.CheckSignature(got, it.valkey)
+    data, err := keys.CheckSignature(got.Payload, it.valkey)
     if err != nil {
         panic(err)
     }
@@ -40,12 +45,15 @@ func TestIntegrationDownDisconnect(t *testing.T) {
 
     it.restartService("mosquitto")
 
-    inChNats <- []byte(msgTmpl)
+    msg = shared.NatsData {
+        Payload: []byte(msgTmpl),
+    }
+    inChNats <- msg
 
-    wanted = []byte(msgTmpl)
+    wanted = msg.Payload
     got = <-outChMqtt
 
-    data, err = keys.CheckSignature(got, it.valkey)
+    data, err = keys.CheckSignature(got.Payload, it.valkey)
     if err != nil {
         panic(err)
     }

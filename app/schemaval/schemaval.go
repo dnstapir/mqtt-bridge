@@ -88,3 +88,7 @@ func (s *Schemaval) Validate(data []byte) bool {
 
 	return true
 }
+
+func (s *Schemaval) GetID() string {
+    return s.schema.ID
+}

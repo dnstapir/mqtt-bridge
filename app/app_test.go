@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/dnstapir/mqtt-bridge/app/keys"
 	"github.com/dnstapir/mqtt-bridge/inject/fake"
+	"github.com/dnstapir/mqtt-bridge/shared"
 	"path/filepath"
 	"testing"
 )
@@ -136,14 +137,19 @@ func TestAppUpBasic(t *testing.T) {
 		t.Fatalf("Error signing data: %s", err)
 	}
 
-	fakeMqtt.Inject(signedIn)
+    injectedMsg := shared.MqttData {
+        Payload: signedIn,
+        Topic: "test",
+    }
+
+	fakeMqtt.Inject(injectedMsg)
 	out := fakeNats.Eavesdrop()
-	if len(in) != len(out) {
+	if len(in) != len(out.Payload) {
 		t.Fatalf("Data mismatch, want: '%s', got: '%s'", in, out)
 	}
 
 	for i := range in {
-		if in[i] != out[i] {
+		if in[i] != out.Payload[i] {
 			t.Fatalf("Data mismatch [%d], want: '%s', got: '%s'", i, in, out)
 		}
 	}
@@ -217,14 +223,19 @@ func TestAppUpNoKeyInConfig(t *testing.T) {
 		t.Fatalf("Error signing data: %s", err)
 	}
 
-	fakeMqtt.Inject(signedIn)
+    injectedMsg := shared.MqttData {
+        Payload: signedIn,
+        Topic: "test",
+    }
+
+	fakeMqtt.Inject(injectedMsg)
 	out := fakeNats.Eavesdrop()
-	if len(in) != len(out) {
+	if len(in) != len(out.Payload) {
 		t.Fatalf("Data mismatch, want: '%s', got: '%s'", in, out)
 	}
 
 	for i := range in {
-		if in[i] != out[i] {
+		if in[i] != out.Payload[i] {
 			t.Fatalf("Data mismatch [%d], want: '%s', got: '%s'", i, in, out)
 		}
 	}
