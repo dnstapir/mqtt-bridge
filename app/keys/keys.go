@@ -188,7 +188,7 @@ func getThumbprint(key jwk.Key) string {
 	if err != nil {
 		log.Warning("Could not calculate thumbprint for JWK. Reason: '%s'", err)
 	} else {
-		thumbprintEnc = base64.URLEncoding.EncodeToString(thumbprint)
+		thumbprintEnc = base64.RawURLEncoding.EncodeToString(thumbprint)
 	}
 
 	return thumbprintEnc
