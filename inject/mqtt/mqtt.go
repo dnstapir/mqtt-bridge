@@ -32,10 +32,10 @@ type mqttclient struct {
 	connMan           *autopaho.ConnectionManager
 	subscriptionsMu   sync.Mutex
 	subscriptions     subscriptionsMu
-	subscriptionOutCh chan []byte
+	subscriptionOutCh chan shared.MqttData
 	done              chan struct{}
 	connectionOk      connectionStatusMu
-    stopped           bool
+	stopped           bool
 }
 
 type subscriptionsMu struct {
@@ -64,7 +64,7 @@ func Create(conf Conf) (*mqttclient, error) {
 		return nil, errors.New("invalid mqtt url")
 	}
 
-	newClient.subscriptionOutCh = make(chan []byte, 1024)
+	newClient.subscriptionOutCh = make(chan shared.MqttData, 1024)
 	newClient.done = make(chan struct{})
 	newClient.subscriptions.Lock()
 	newClient.subscriptions.subs = make([]paho.SubscribeOptions, 0)
@@ -126,7 +126,7 @@ func (c *mqttclient) Connect() error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), c_MQTT_TIMEOUT*time.Second)
 	err = mqttConnM.AwaitConnection(ctx)
-    cancel()
+	cancel()
 	if err != nil {
 		return err
 	}
@@ -150,9 +150,14 @@ func (c *mqttclient) subscriptionCb(pr paho.PublishReceived) (bool, error) {
 		return true, nil
 	}
 
+	outgoingMsg := shared.MqttData{
+		Payload: pr.Packet.Payload,
+		Topic:   pr.Packet.Topic,
+	}
+
 	go func() {
 		select {
-		case c.subscriptionOutCh <- pr.Packet.Payload:
+		case c.subscriptionOutCh <- outgoingMsg:
 			c.log.Debug("Successfully handled packet on topic '%s'", pr.Packet.Topic)
 		case <-c.done:
 			c.log.Warning("Shutdown signaled, dropping incoming mqtt packet")
@@ -163,7 +168,7 @@ func (c *mqttclient) subscriptionCb(pr paho.PublishReceived) (bool, error) {
 	return true, nil
 }
 
-func (c *mqttclient) Subscribe(topic string) (<-chan []byte, error) {
+func (c *mqttclient) Subscribe(topic string) (<-chan shared.MqttData, error) {
 	subscription := paho.SubscribeOptions{
 		Topic: topic,
 		QoS:   0,
@@ -197,9 +202,9 @@ func (c *mqttclient) Subscribe(topic string) (<-chan []byte, error) {
 }
 
 func (c *mqttclient) Stop() {
-    if c.stopped {
-        return
-    }
+	if c.stopped {
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), c_MQTT_TIMEOUT*time.Second)
 	defer cancel()
 
@@ -229,7 +234,7 @@ func (c *mqttclient) Stop() {
 	time.Sleep(10 * time.Millisecond)
 	close(c.subscriptionOutCh)
 
-    c.stopped = true
+	c.stopped = true
 }
 
 func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {

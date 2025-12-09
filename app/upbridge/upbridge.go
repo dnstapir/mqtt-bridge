@@ -73,13 +73,19 @@ func Create(conf Conf) (*upbridge, error) {
 	return newUpbridge, nil
 }
 
-func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
+func (ub *upbridge) Start(mqttCh <-chan shared.MqttData, natsCh chan<- shared.NatsData) {
 	for {
 		select {
 		case <-ub.stopCh:
 			ub.log.Info("Stopping upbound bridge")
 			return
-		case sig := <-mqttCh:
+		case mqttData := <-mqttCh:
+			outgoingMsg := shared.NatsData{
+				Payload: nil,
+				Headers: make(map[string]string),
+			}
+
+			sig := mqttData.Payload
 			keyID, err := keys.GetKeyIDFromSignedData(sig)
 			ub.log.Debug("Got MQTT message from '%s'", keyID)
 			if err != nil {
@@ -118,9 +124,15 @@ func (ub *upbridge) Start(mqttCh <-chan []byte, natsCh chan<- []byte) {
 			}
 			ub.log.Debug("Signature with ID '%s' ok", keyID)
 
+			outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_MESSAGE_SCHEMA] = ub.schemaval.GetID()
+			outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_MQTT_TOPIC] = mqttData.Topic
+			outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_KEY_IDENTIFIER] = keyID
+			outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_KEY_THUMBPRINT] = keys.GetThumbprint(key)
+
 			ok := ub.schemaval.Validate(data)
 			if ok {
-				natsCh <- data
+				outgoingMsg.Payload = data
+				natsCh <- outgoingMsg
 				ub.log.Debug("Handed over %d bytes to NATS", len(data))
 			} else {
 				ub.log.Error("Malformed data from MQTT, discarding...")

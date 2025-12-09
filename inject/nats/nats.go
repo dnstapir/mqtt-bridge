@@ -7,11 +7,6 @@ import (
 	"time"
 )
 
-const cHEADER_DNSTAPIR_MESSAGE_SCHEMA = "DNSTAPIR-Message-Schema"
-const cHEADER_DNSTAPIR_MQTT_TOPIC = "DNSTAPIR-Mqtt-Topic"
-const cHEADER_DNSTAPIR_KEY_IDENTIFIER = "DNSTAPIR-Key-Identifier"
-const cHEADER_DNSTAPIR_KEY_THUMBPRINT = "DNSTAPIR-Key-Thumbprint"
-
 type Conf struct {
 	Log     shared.LoggerIF
 	NatsUrl string
@@ -87,14 +82,22 @@ func (c *natsclient) Stop() {
 	close(c.subscriptionOutCh)
 }
 
-func (c *natsclient) StartPublishing(subject string, queue string) (chan<- []byte, error) {
-	dataChan := make(chan []byte)
+func (c *natsclient) StartPublishing(subject string, queue string) (chan<- shared.NatsData, error) {
+	dataChan := make(chan shared.NatsData)
 
 	go func() {
-		for data := range dataChan {
+		for natsData := range dataChan {
 			msg := nats.NewMsg(subject)
-			msg.Data = data
-			// TODO NATS headers
+			msg.Data = natsData.Payload
+
+			for _, h := range shared.NATSHEADERS_DNSTAPIR_ALL {
+				val, ok := natsData.Headers[h]
+				if ok {
+					msg.Header.Add(h, val)
+					c.log.Debug("Setting NATS header, '%s: %s'", h, val)
+				}
+			}
+
 			c.log.Debug("Attempting to publish NATS message %s", string(msg.Data))
 			err := c.conn.PublishMsg(msg)
 			if err != nil {

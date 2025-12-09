@@ -1,14 +1,18 @@
 package fake
 
+import (
+	"github.com/dnstapir/mqtt-bridge/shared"
+)
+
 type nats struct {
 	subCh chan []byte
-	pubCh chan []byte
+	pubCh chan shared.NatsData
 }
 
 func Nats() *nats {
 	nats := new(nats)
 	nats.subCh = make(chan []byte, 1)
-	nats.pubCh = make(chan []byte)
+	nats.pubCh = make(chan shared.NatsData)
 
 	return nats
 }
@@ -27,11 +31,11 @@ func (n *nats) Inject(data []byte) {
 	n.subCh <- data
 }
 
-func (n *nats) StartPublishing(subject string, queue string) (chan<- []byte, error) {
+func (n *nats) StartPublishing(subject string, queue string) (chan<- shared.NatsData, error) {
 	return n.pubCh, nil
 }
 
-func (n *nats) Eavesdrop() []byte {
+func (n *nats) Eavesdrop() shared.NatsData {
 	data := <-n.pubCh
 	return data
 }

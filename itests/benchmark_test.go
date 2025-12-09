@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/dnstapir/mqtt-bridge/app/keys"
+    "github.com/dnstapir/mqtt-bridge/shared"
 )
 
 func BenchmarkDownBasic(b *testing.B) {
@@ -45,7 +46,10 @@ func BenchmarkDownBasic(b *testing.B) {
     }()
 
     for i := range n_MESSAGES {
-        inCh <- []byte(fmt.Sprintf(msgTmpl, i))
+        msg := shared.NatsData {
+            Payload: []byte(fmt.Sprintf(msgTmpl, i)),
+        }
+        inCh <- msg
     }
 
     wg.Wait()

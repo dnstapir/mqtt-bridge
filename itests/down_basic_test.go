@@ -5,7 +5,9 @@ package itests
 import (
     "bytes"
     "testing"
+
 	"github.com/dnstapir/mqtt-bridge/app/keys"
+    "github.com/dnstapir/mqtt-bridge/shared"
 )
 
 func TestIntegrationDownBasic(t *testing.T) {
@@ -24,12 +26,15 @@ func TestIntegrationDownBasic(t *testing.T) {
         panic(err)
     }
 
-    inCh <- []byte(msgTmpl)
+    msg := shared.NatsData {
+        Payload: []byte(msgTmpl),
+    }
+    inCh <- msg
 
-    wanted := []byte(msgTmpl)
+    wanted := msg.Payload
     got := <-outCh
 
-    data, err := keys.CheckSignature(got, it.valkey)
+    data, err := keys.CheckSignature(got.Payload, it.valkey)
     if err != nil {
         panic(err)
     }

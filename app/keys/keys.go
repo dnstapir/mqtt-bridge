@@ -1,7 +1,9 @@
 package keys
 
 import (
+	"crypto"
 	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"os"
@@ -174,6 +176,22 @@ func GenerateValKey(filename, kid string) (ValKey, error) {
 
 func GenerateSignKey(filename, kid string) (SignKey, error) {
 	return generateKey(filename, kid, true)
+}
+
+func GetThumbprint(key ValKey) string {
+	return getThumbprint(key)
+}
+
+func getThumbprint(key jwk.Key) string {
+	thumbprint, err := key.Thumbprint(crypto.SHA256)
+	thumbprintEnc := ""
+	if err != nil {
+		log.Warning("Could not calculate thumbprint for JWK. Reason: '%s'", err)
+	} else {
+		thumbprintEnc = base64.RawURLEncoding.EncodeToString(thumbprint)
+	}
+
+	return thumbprintEnc
 }
 
 func generateKey(filename, kid string, isPrivate bool) (jwk.Key, error) {

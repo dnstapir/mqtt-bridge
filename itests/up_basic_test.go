@@ -5,6 +5,7 @@ package itests
 import (
     "bytes"
     "testing"
+
 	"github.com/dnstapir/mqtt-bridge/app/keys"
 )
 
