@@ -80,12 +80,12 @@ func (ub *upbridge) Start(mqttCh <-chan shared.MqttData, natsCh chan<- shared.Na
 			ub.log.Info("Stopping upbound bridge")
 			return
 		case mqttData := <-mqttCh:
-            outgoingMsg := shared.NatsData {
-                Payload: nil,
-                Headers: make(map[string]string),
-            }
+			outgoingMsg := shared.NatsData{
+				Payload: nil,
+				Headers: make(map[string]string),
+			}
 
-            sig := mqttData.Payload
+			sig := mqttData.Payload
 			keyID, err := keys.GetKeyIDFromSignedData(sig)
 			ub.log.Debug("Got MQTT message from '%s'", keyID)
 			if err != nil {
@@ -124,14 +124,14 @@ func (ub *upbridge) Start(mqttCh <-chan shared.MqttData, natsCh chan<- shared.Na
 			}
 			ub.log.Debug("Signature with ID '%s' ok", keyID)
 
-            outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_MESSAGE_SCHEMA] = ub.schemaval.GetID()
-            outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_MQTT_TOPIC] = mqttData.Topic
-            outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_KEY_IDENTIFIER] = keyID
-            outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_KEY_THUMBPRINT] = keys.GetThumbprint(key)
+			outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_MESSAGE_SCHEMA] = ub.schemaval.GetID()
+			outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_MQTT_TOPIC] = mqttData.Topic
+			outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_KEY_IDENTIFIER] = keyID
+			outgoingMsg.Headers[shared.NATSHEADER_DNSTAPIR_KEY_THUMBPRINT] = keys.GetThumbprint(key)
 
 			ok := ub.schemaval.Validate(data)
 			if ok {
-                outgoingMsg.Payload = data
+				outgoingMsg.Payload = data
 				natsCh <- outgoingMsg
 				ub.log.Debug("Handed over %d bytes to NATS", len(data))
 			} else {

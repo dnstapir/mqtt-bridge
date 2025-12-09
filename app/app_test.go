@@ -137,10 +137,10 @@ func TestAppUpBasic(t *testing.T) {
 		t.Fatalf("Error signing data: %s", err)
 	}
 
-    injectedMsg := shared.MqttData {
-        Payload: signedIn,
-        Topic: "test",
-    }
+	injectedMsg := shared.MqttData{
+		Payload: signedIn,
+		Topic:   "test",
+	}
 
 	fakeMqtt.Inject(injectedMsg)
 	out := fakeNats.Eavesdrop()
@@ -223,10 +223,10 @@ func TestAppUpNoKeyInConfig(t *testing.T) {
 		t.Fatalf("Error signing data: %s", err)
 	}
 
-    injectedMsg := shared.MqttData {
-        Payload: signedIn,
-        Topic: "test",
-    }
+	injectedMsg := shared.MqttData{
+		Payload: signedIn,
+		Topic:   "test",
+	}
 
 	fakeMqtt.Inject(injectedMsg)
 	out := fakeNats.Eavesdrop()

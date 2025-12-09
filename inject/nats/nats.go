@@ -90,13 +90,13 @@ func (c *natsclient) StartPublishing(subject string, queue string) (chan<- share
 			msg := nats.NewMsg(subject)
 			msg.Data = natsData.Payload
 
-            for _, h := range shared.NATSHEADERS_DNSTAPIR_ALL {
-                val, ok := natsData.Headers[h]
-                if ok {
-                    msg.Header.Add(h, val)
-                    c.log.Debug("Setting NATS header, '%s: %s'", h, val)
-                }
-            }
+			for _, h := range shared.NATSHEADERS_DNSTAPIR_ALL {
+				val, ok := natsData.Headers[h]
+				if ok {
+					msg.Header.Add(h, val)
+					c.log.Debug("Setting NATS header, '%s: %s'", h, val)
+				}
+			}
 
 			c.log.Debug("Attempting to publish NATS message %s", string(msg.Data))
 			err := c.conn.PublishMsg(msg)

@@ -90,5 +90,5 @@ func (s *Schemaval) Validate(data []byte) bool {
 }
 
 func (s *Schemaval) GetID() string {
-    return s.schema.ID
+	return s.schema.ID
 }

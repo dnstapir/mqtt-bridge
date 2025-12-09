@@ -9,6 +9,6 @@ type MqttIF interface {
 }
 
 type MqttData struct {
-    Topic string
-    Payload []byte
+	Topic   string
+	Payload []byte
 }
