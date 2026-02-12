@@ -237,7 +237,7 @@ func (c *mqttclient) Stop() {
 	c.stopped = true
 }
 
-func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
+func (c *mqttclient) StartPublishing(topic string, retain bool) (chan<- []byte, error) {
 	dataChan := make(chan []byte)
 
 	if c.connMan == nil {
@@ -252,7 +252,7 @@ func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
 				QoS:     0, // TODO make configurable?
 				Topic:   topic,
 				Payload: data,
-				Retain:  false,
+				Retain:  retain,
 			}
 
 			c.log.Debug("Attempting to publish on topic '%s'", topic)
@@ -277,6 +277,8 @@ func (c *mqttclient) StartPublishing(topic string) (chan<- []byte, error) {
 
 		c.log.Warning("Publishing channel closed for topic '%s'", topic)
 	}()
+
+    c.log.Info("Will be publishing on MQTT topic '%s', retain: %t", topic, retain)
 
 	return dataChan, nil
 }

@@ -26,6 +26,7 @@ type App struct {
 type Bridge struct {
 	Direction   string `toml:"Direction"`
 	MqttTopic   string `toml:"MqttTopic"`
+	MqttRetain  bool   `toml:"MqttRetain"`
 	NatsSubject string `toml:"NatsSubject"`
 	NatsQueue   string `toml:"NatsQueue"`
 	Key         string `toml:"Key"`
@@ -164,7 +165,7 @@ func (a *App) startBridges() {
 				panic(err)
 			}
 
-			outCh, err := a.Mqtt.StartPublishing(bridge.MqttTopic)
+			outCh, err := a.Mqtt.StartPublishing(bridge.MqttTopic, bridge.MqttRetain)
 			if err != nil {
 				panic(err)
 			}

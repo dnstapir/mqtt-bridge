@@ -15,7 +15,7 @@ func TestIntegrationUpBasicWithoutSchema(t *testing.T) {
     it.setup(true)
     defer it.teardown()
 
-    inCh, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
+    inCh, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID(), false)
     if err != nil {
         panic(err)
     }

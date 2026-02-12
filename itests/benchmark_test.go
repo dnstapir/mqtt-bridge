@@ -82,7 +82,7 @@ func BenchmarkUpBasicWithoutSchema(b *testing.B) {
         preparedData[i] = signedIndata
     }
 
-    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID())
+    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID(), false)
     if err != nil {
         panic(err)
     }
