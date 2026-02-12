@@ -278,7 +278,7 @@ func (c *mqttclient) StartPublishing(topic string, retain bool) (chan<- []byte, 
 		c.log.Warning("Publishing channel closed for topic '%s'", topic)
 	}()
 
-    c.log.Info("Will be publishing on MQTT topic '%s', retain: %t", topic, retain)
+	c.log.Info("Will be publishing on MQTT topic '%s', retain: %t", topic, retain)
 
 	return dataChan, nil
 }
