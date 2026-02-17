@@ -32,7 +32,7 @@ func (m *mqtt) Inject(data shared.MqttData) {
 	m.subCh <- data
 }
 
-func (m *mqtt) StartPublishing(subject string) (chan<- []byte, error) {
+func (m *mqtt) StartPublishing(subject string, retain bool) (chan<- []byte, error) {
 	return m.pubCh, nil
 }
 

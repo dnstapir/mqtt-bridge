@@ -49,6 +49,8 @@ Schema = "path/to/json/schema"
 [[Bridges]]
 Direction = "down"
 MqttTopic = "observations/down/tapir-pop"
+# Retained MQTT messages are supported for down bridges only
+MqttRetain = false
 NatsSubject = "observations.down.tapir-pop"
 NatsQueue = "observationsQ"
 Key = "path/to/data/key"
