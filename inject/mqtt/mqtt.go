@@ -238,7 +238,7 @@ func (c *mqttclient) Stop() {
 }
 
 func (c *mqttclient) StartPublishing(topic string, retain bool) (chan<- []byte, error) {
-	dataChan := make(chan []byte)
+	dataChan := make(chan []byte, 1024)
 
 	if c.connMan == nil {
 		return nil, errors.New("mqtt client must connect first")
