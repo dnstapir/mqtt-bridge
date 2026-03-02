@@ -83,7 +83,7 @@ func (c *natsclient) Stop() {
 }
 
 func (c *natsclient) StartPublishing(subject string, queue string) (chan<- shared.NatsData, error) {
-	dataChan := make(chan shared.NatsData)
+	dataChan := make(chan shared.NatsData, 1024)
 
 	go func() {
 		for natsData := range dataChan {
