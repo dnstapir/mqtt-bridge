@@ -244,18 +244,18 @@ func (c *mqttclient) StartPublishing(topic string, retain bool) (chan<- []byte, 
 		return nil, errors.New("mqtt client must connect first")
 	}
 
-	go func() {
+	go func(t string, r bool) {
 		for data := range dataChan {
 			var err error
 
 			mqttMsg := paho.Publish{
 				QoS:     0, // TODO make configurable?
-				Topic:   topic,
+				Topic:   t,
 				Payload: data,
-				Retain:  retain,
+				Retain:  r,
 			}
 
-			c.log.Debug("Attempting to publish on topic '%s'", topic)
+			c.log.Debug("Attempting to publish on topic '%s'", t)
 
 			ctx, cancel := context.WithTimeout(context.Background(), c_MQTT_TIMEOUT*time.Second)
 			err = c.connMan.AwaitConnection(ctx)
@@ -268,15 +268,15 @@ func (c *mqttclient) StartPublishing(topic string, retain bool) (chan<- []byte, 
 			_, err = c.connMan.Publish(ctx, &mqttMsg)
 
 			if err != nil {
-				c.log.Error("Error '%s' while publishing on topic '%s'", err, topic)
+				c.log.Error("Error '%s' while publishing on topic '%s'", err, t)
 			} else {
-				c.log.Debug("Successfully published %d bytes on MQTT topic '%s'", len(mqttMsg.Payload), topic)
+				c.log.Debug("Successfully published %d bytes on MQTT topic '%s'", len(mqttMsg.Payload), t)
 			}
 			cancel()
 		}
 
-		c.log.Warning("Publishing channel closed for topic '%s'", topic)
-	}()
+		c.log.Warning("Publishing channel closed for topic '%s'", t)
+	}(topic, retain)
 
 	c.log.Info("Will be publishing on MQTT topic '%s', retain: %t", topic, retain)
 
