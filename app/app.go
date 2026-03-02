@@ -125,8 +125,7 @@ func (a *App) Stop() error {
 }
 
 func (a *App) startBridges() {
-	for _, b := range a.Bridges {
-		bridge := b // 1.22 for loop and closure fix does not seem to work here
+	for _, bridge := range a.Bridges {
 		if bridge.Direction == "up" {
 			conf := upbridge.Conf{
 				Log:     a.Log,
