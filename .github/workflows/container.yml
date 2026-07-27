@@ -33,4 +33,5 @@ jobs:
       - name: Delete untagged containers
         uses: dataaxiom/ghcr-cleanup-action@cd0cdb900b5dbf3a6f2cc869f0dbb0b8211f50c4
         with:
+          packages: dnstapir/mqtt-bridge
           delete-untagged: true
