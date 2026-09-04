@@ -95,7 +95,7 @@ func (ub *upbridge) Start(mqttCh <-chan shared.MqttData, natsCh chan<- shared.Na
 
 			key := ub.lru.GetValkeyFromCache(keyID)
 			if key == nil {
-				ub.log.Info("Key not found in cache, contacting nodeman", keyID)
+				ub.log.Info("Key not found in cache, contacting nodeman for key '%s'", keyID)
 				newKeyBytes, err := ub.nodeman.GetKey(keyID)
 				if err != nil {
 					ub.log.Error("Error getting key '%s' from Nodeman, err: %s", keyID, err)
