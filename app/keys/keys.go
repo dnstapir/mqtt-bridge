@@ -11,9 +11,9 @@ import (
 
 	"github.com/dnstapir/mqtt-bridge/shared"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
 )
 
 type SignKey jwk.Key
@@ -109,7 +109,17 @@ func Sign(data []byte, key SignKey) ([]byte, error) {
 		return nil, errors.New("nil logger")
 	}
 
-	signedData, err := jws.Sign(data, jws.WithJSON(), jws.WithKey(key.Algorithm(), key))
+	keyJWK, ok := key.(jwk.Key)
+	if !ok {
+		return nil, errors.New("bad jwk key")
+	}
+
+	alg, algFound := keyJWK.Algorithm()
+	if !algFound {
+		return nil, errors.New("alg not found")
+	}
+
+	signedData, err := jws.Sign(data, jws.WithJSON(), jws.WithKey(alg, keyJWK))
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +146,8 @@ func GetKeyIDFromSignedData(sig []byte) (string, error) {
 		return "", errors.New("message contained no signatures")
 	}
 
-	jwsKid := sigs[0].ProtectedHeaders().KeyID()
-	if jwsKid == "" {
+	jwsKid, kidFound := sigs[0].ProtectedHeaders().KeyID()
+	if jwsKid == "" || !kidFound {
 		log.Error("Incoming JWS had no \"kid\" set. Discarding...")
 		return "", errors.New("key id not found")
 	}
@@ -150,13 +160,28 @@ func CheckSignature(sig []byte, key ValKey) ([]byte, error) {
 		return nil, errors.New("nil logger")
 	}
 
-	data, err := jws.Verify(sig, jws.WithJSON(), jws.WithKey(key.Algorithm(), key))
+	keyJWK, ok := key.(jwk.Key)
+	if !ok {
+		return nil, errors.New("bad jwk key")
+	}
+
+	alg, algFound := keyJWK.Algorithm()
+	if !algFound {
+		return nil, errors.New("alg not found")
+	}
+
+	data, err := jws.Verify(sig, jws.WithJSON(), jws.WithKey(alg, keyJWK))
 	if err != nil {
 		log.Error("Failed to verify signature on message. Discarding...")
 		return nil, err
 	}
 
-	log.Debug("Message signature was successfully validated! Used key '%s'", key.KeyID())
+	kid, kidFound := keyJWK.KeyID()
+	if kid == "" || !kidFound {
+		kid = "<NOT FOUND>"
+	}
+
+	log.Debug("Message signature was successfully validated! Used key '%s'", kid)
 
 	return data, nil
 }
@@ -204,7 +229,7 @@ func generateKey(filename, kid string, isPrivate bool) (jwk.Key, error) {
 		return nil, err
 	}
 
-	dataKeyJWK, err := jwk.FromRaw(dataKeyRaw)
+	dataKeyJWK, err := jwk.Import[jwk.Key](dataKeyRaw)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +239,7 @@ func generateKey(filename, kid string, isPrivate bool) (jwk.Key, error) {
 		return nil, err
 	}
 
-	err = dataKeyJWK.Set(jwk.AlgorithmKey, jwa.EdDSA)
+	err = dataKeyJWK.Set(jwk.AlgorithmKey, jwa.EdDSAEd25519())
 	if err != nil {
 		return nil, err
 	}
