@@ -16,7 +16,11 @@ func TestIntegrationUpBasicWithoutSchemaDisconnectMqtt(t *testing.T) {
     it.setup(true)
     defer it.teardown()
 
-    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + it.signkey.KeyID(), false)
+    kid, kidFound := it.signkey.KeyID()
+    if !kidFound {
+        panic("kid not found")
+    }
+    inChMqtt, err := it.mqttClient.StartPublishing("events/up/" + kid, false)
     if err != nil {
         panic(err)
     }

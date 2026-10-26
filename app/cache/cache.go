@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"errors"
+
 	"github.com/dnstapir/mqtt-bridge/app/keys"
 
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -39,6 +41,11 @@ func (l *LruCache) GetValkeyFromCache(keyID string) keys.ValKey {
 }
 
 func (l *LruCache) StoreValkeyInCache(key keys.ValKey) error {
-	l.valKeyCache.Add(key.KeyID(), key)
+	kid, found := key.KeyID()
+	if !found {
+		return errors.New("key had no kid")
+	}
+
+	l.valKeyCache.Add(kid, key)
 	return nil
 }
